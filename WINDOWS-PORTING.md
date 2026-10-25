@@ -1,48 +1,47 @@
-# Windows 适配续接
+# Windows 适配维护说明
 
-当前交付是 **Antigravity App 2.25.0 / macOS arm64** 的已验证补丁，不是 Windows 成品。不要删除平台检查后直接对 Windows 应用运行安装。Windows 版本号、架构、文件布局和资源指纹必须在目标机器重新采集。
+当前适配：Antigravity **App 2.26.0 / Windows x64**。原有 **App 2.25.0 / macOS arm64** 保留。使用方法见 [README.md](README.md)，调研依据与初始方案见 [WINDOWS-ADAPTATION-PLAN.md](WINDOWS-ADAPTATION-PLAN.md)。
 
-## 开发起点
+## 平台边界
 
-先用有仓库访问权限的 GitHub 账号克隆，安装 Node.js 24.15 及以上的 24.x 版本。在 PowerShell 中运行：
+| 位置 | 职责 |
+| --- | --- |
+| `src/installer.js` | 按运行平台分派安装器 |
+| `src/installers/macos.js` | 原 Mac 安装、签名、备份、健康确认和还原流程 |
+| `src/installers/windows.js` | Windows 身份检查、独立状态、全量备份、事务与启动确认 |
+| `src/platform/windows.js` | 安装发现、PE/fuses、官方分发校验、进程检测、ACL/属性和复制 |
+| `src/adapters.js`、`data/adapter-*.json` | 精确匹配平台、架构、版本；Mac 原指纹未变 |
+| `src/patch.js` | 共用 AST 打补丁与 ASAR 校验，Windows 传入自己的适配器和健康记录位置 |
+| `src/runtime.js`、`src/native.cjs` | 共用受限 DOM 翻译与原生菜单显示翻译 |
+| `src/transaction.js` | 资源替换日志与恢复；Windows 保留原资源权限 |
+| `scripts/windows.cmd`、根目录中文 `.cmd` | 中文入口、Node/依赖检查，不更改执行策略 |
+
+Windows 官方安装包本身 Google LLC 签名有效，安装后的主程序和语言服务原厂未签名。新增适配文件包含官方 URL、安装包指纹、425 个文件的 SHA-256 和可选卸载器指纹，不包含原厂二进制。所有哈希均由核验过的官方包提取，不能用未知本地文件直接更新基线。
+
+## 本地验证
+
+使用 Node.js 24.15 及以上的 24.x 版本：
 
 ```powershell
-git clone https://github.com/LXingYun/antigravity-zh-patch.git
-Set-Location antigravity-zh-patch
 npm ci --ignore-scripts
-npm run test:runtime
-git switch -c windows-port
+npm test
+node src/cli.js check
 ```
 
-`test:runtime` 运行 jsdom 中的翻译行为测试，不读取 Antigravity，也不会安装补丁。完整 `npm test` 中的原生模块和归档测试会读取 Mac 上的原版应用或备份；兼容性测试依赖 macOS。其余文件事务测试也不能代替 Windows 文件锁和权限的实机验收。
+`npm test` 在临时副本运行安装与还原，不写正在使用的 Antigravity。原始资源发现顺序为环境变量 `AG_ZH_ORIGINAL_ASAR`、本地 `work/official/app/resources/app.asar`、默认原版安装；Mac 另支持原来的原版备份位置。显式提供的资源必须匹配适配指纹。
 
-本仓库固定 JS、JSON 等文本为 LF，防止 Windows 换行转换改变补丁源码指纹。修改后正常提交源码；原厂应用、解包资源、账号和本机备份均不应入库。
+覆盖范围包括：翻译区域与用户内容隔离、原生命令 ID/回调/快捷键、WSL 发行版名保护、ASAR 未修改文件、未知版本、Windows 长路径/中文/空格/引号、DACL/属性、真实文件锁、只读目标、junction 拒绝、非法事务路径、重复安装、完整恢复、中断恢复与升级冲突。另一平台特有检查会明确跳过；Windows 测试通过不能替代新一轮 Mac 实机验收。
 
-## 代码入口
+Windows 状态放在 `%LOCALAPPDATA%\Antigravity zh-CN\instances\<安装路径标识>\`，含 `current.json`、`health.json`、`backups` 和 `transactions`。原版备份按版本和指纹隔离。健康确认匹配安装 UUID、进程、版本、资源路径与翻译计数。
 
-| 文件 | 当前职责 | Windows 适配工作 |
-| --- | --- | --- |
-| `data/zh-CN.json` | 1109 条界面词条 | 沿用词库，按目标版本新增文案 |
-| `src/runtime.js` | 来源校验、限定区域的增量翻译 | 确认新版本来源、DOM 结构和选择器，保留用户内容保护 |
-| `src/native.cjs` | 原生菜单显示文本与命令标识分离 | 验证 Windows 菜单、托盘和快捷键行为 |
-| `src/patch.js` | AST 修改、原生模块指纹检查与 ASAR 打包 | 拆分平台/版本适配选择，重新核对修改点；当前健康记录路径仍写死为 macOS |
-| `data/adapter-2.25.0.json` | macOS 2.25.0 的已验证指纹 | 保留此文件，新增 Windows 专用适配数据；同版本不同平台不得共用指纹 |
-| `src/platform.js` | macOS 签名、进程、复制和文件清单 | 实现 Windows 版本/签名验证、进程检测、复制及权限保留 |
-| `src/installer.js` | 检查、备份、安装、状态、还原 | 适配安装目录、用户状态目录、可执行文件、健康确认与启动流程 |
-| `src/transaction.js` | 资源替换与中断回滚 | 验证 Windows 重命名、占用文件、权限和故障恢复语义 |
-| `test/` | 运行时、原生动作、归档、版本与事务验证 | 分离便携测试和平台集成测试；原厂测试资源只从本机读取 |
+安装和恢复要求正常退出应用。启动失败且进程仍在运行时，保留事务并提示退出后恢复；不强制终止用户工作。恢复前核对当前原版/补丁资源及全部其他文件，拒绝旧备份覆盖已升级或未知的安装。写入只涉及 `resources/app.asar` 和补丁标记。
 
-## 实施顺序
+## 继续适配新版本
 
-1. 检查目标机器的 Antigravity App 版本、架构、安装目录、官方签名和 Electron 保护配置，采集原始 ASAR 及相关模块/界面服务指纹。不要把原厂二进制提交到仓库。
-2. 为平台和版本建立独立适配入口。保留 macOS 已验证路径；未知版本、其他补丁及不一致的文件必须拒绝写入。
-3. 在临时副本完成 AST 定点修改、语法检查、ASAR 打包和完整性验证。确认全部未修改文件逐字节一致，不通过关闭系统保护或修改可执行文件绕过校验。
-4. 实现 Windows 的完整备份、退出后再次校验、资源替换、事务记录和失败还原。确认应用退出，不强制结束用户任务；备份按版本和指纹区分且不覆盖。
-5. 适配启动和健康记录路径，再制作中文 PowerShell 或双击入口。安装前、恢复前均核对版本与指纹，避免旧备份覆盖升级后的资源。
-6. 在 Windows 实机验证主界面、模型选择、设置、快捷键、原生菜单、托盘和更新状态；用 `Settings`、`New Project` 等用户输入确认不被误翻译。测试重复安装、写入失败、文件占用、中断恢复与升级冲突。
+1. 取得对应平台官方分发，检查来源、签名、产品、架构、版本、PE/Electron 保护配置与资源布局。
+2. 新增独立适配数据，不覆盖旧平台或旧版本基线。核对 AST 修改点和精确数量，不使用宽泛替换。
+3. 在副本打包，逐文件验证字节、unpacked、link、executable 等元数据；不得修改 fuses 或可执行文件绕过保护。
+4. 核对本地前端的真实界面标记，维持输入、正文、代码、路径、模型名和用户命名保护。
+5. 完成自动测试，再安装到真实应用进行首页、设置、模型、原生菜单、快捷键、草稿保护及还原验收，并记录边界。
 
-官方更新流程仍为“恢复原版 → 官方升级 → 检查新版本 → 重新汉化”。macOS 验证记录只证明已记录的 Mac 环境，不代表 Windows 可用。
-
-## 给 Windows 上的编程助手
-
-> 请基于本仓库适配这台 Windows 机器上已安装的 Antigravity App。先阅读 README.md、WINDOWS-PORTING.md 和现有源码，确认版本、架构、原厂签名及文件结构；保留 macOS 2.25.0 的适配。先完成只读检查、Windows 适配代码和测试，再安装验证。不要跳过版本/指纹检查，不要上传应用二进制、备份或账号数据；保留用户输入、对话正文、代码、路径、模型名和项目名。沿用完整备份、退出后复验、事务回滚和升级冲突保护，记录实际测试范围。
+官方升级顺序仍为“恢复原版 → 官方升级 → 检查新版本 → 重新汉化”。`work/`、测试资源、安装器、应用副本、备份和本机收据不得提交。

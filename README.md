@@ -1,8 +1,8 @@
-# Antigravity 2.25.0 本机中文补丁
+# Antigravity App 本机中文补丁
 
-适用于这台 Apple Silicon Mac 上的 **Antigravity App 2.25.0**。不是 Antigravity IDE 扩展，也不自动兼容新版本。
+支持 **macOS arm64 / Antigravity App 2.25.0** 和 **Windows x64 / Antigravity App 2.26.0**。不是 Antigravity IDE 扩展，不自动兼容其他平台、架构或新版本。
 
-## 获取源码与 Windows 续接
+## 获取源码
 
 仓库：<https://github.com/LXingYun/antigravity-zh-patch>（私有，需要有访问权限的 GitHub 账号）。
 
@@ -10,23 +10,23 @@
 git clone https://github.com/LXingYun/antigravity-zh-patch.git
 cd antigravity-zh-patch
 npm ci --ignore-scripts
-npm run test:runtime
+npm test
 ```
 
-使用 Node.js 24.15 及以上的 24.x 版本。`test:runtime` 只测试翻译运行时，不访问已安装应用，可作为 Windows 适配的起点；尚未在 Windows 实机验证。本仓库目前仍只有 macOS 安装器，Windows 适配清单见 [WINDOWS-PORTING.md](WINDOWS-PORTING.md)。完整的 `npm test` 依赖本机原厂 2.25.0 应用或对应的补丁备份及 macOS 工具。
+使用 Node.js 24.15 及以上的 24.x 版本。`npm test` 仅运行 `test/*.test.js`，不会安装到正在使用的应用。需要原版资源的测试会寻找本平台已验证的原始应用；也可通过 `AG_ZH_ORIGINAL_ASAR` 指定原始归档路径，并保留相邻的 `.unpacked` 目录。Windows 完整安装测试还需要该归档所属的完整官方应用目录。缺少资源或在另一平台运行时，相关测试会明确跳过。`npm run test:runtime` 只运行翻译行为测试。
 
-仓库不包含 `node_modules`、原厂应用、ASAR、备份、账号数据及本机 `验证结果.json`；历史人工验证结论保存在 `验证记录.md`。
+仓库不包含 `node_modules`、原厂应用、ASAR、备份、账号数据及本机 `验证结果.json`。历史 Mac 验证保存在 [验证记录.md](验证记录.md)，Windows 验收见 [Windows验证记录.md](Windows验证记录.md)，适配维护见 [WINDOWS-PORTING.md](WINDOWS-PORTING.md)。
 
 ## 使用
 
-本目录已包含源码、锁定的依赖和中文双击入口：
+本目录包含源码、依赖锁文件和中文双击入口。**Windows 使用 `.cmd`，Mac 使用 `.command`**：
 
-- `检查兼容性.command`：检查版本、资源指纹、签名状态和未完成的安装事务。
-- `安装汉化.command`：应用退出后安装；默认启动并等待翻译引擎就绪，失败时恢复。
-- `查看安装状态.command`：查看当前补丁、完整备份位置和运行确认。
-- `恢复原版.command`：应用退出后恢复原版资源，验证原厂完整签名。
+- `检查兼容性`：检查版本、资源指纹、签名状态和未完成的安装事务。
+- `安装汉化`：应用退出后安装；默认启动并等待翻译引擎就绪。
+- `查看安装状态`：查看当前补丁、完整备份位置和运行确认。
+- `恢复原版`：应用退出后恢复原版资源并核对完整文件清单。
 
-**先使用菜单“退出 Antigravity”，不要只关闭窗口。**工具不会强制结束已有任务。无需 sudo，无需设置令牌。
+**安装或恢复前，先使用菜单“退出 Antigravity”，不要只关闭窗口。**工具不会强制结束已有任务。默认用户安装无需管理员权限或 sudo，无需设置令牌。Windows 双击入口会提示缺少 Node 或依赖，不自动安装软件或更改执行策略。
 
 终端操作（先进入本目录）：
 
@@ -37,35 +37,38 @@ node src/cli.js status
 node src/cli.js restore
 ```
 
-不带参数时默认检查，不会安装。`--app /完整路径/Antigravity.app` 可指定安装位置，版本和指纹检查同样生效。`--no-launch` 仅供人工验证流程：安装后自行启动检查，不执行自动启动回退。
+不带参数时默认检查，不会安装。Windows 自动发现用户安装目录及卸载注册信息；发现多个安装时要求用 `--app "C:\完整路径\Antigravity"` 指定。Mac 默认 `/Applications/Antigravity.app`，可用 `--app /完整路径/Antigravity.app` 指定。所有路径均执行同样的版本和指纹检查。
 
-本机使用 Node.js 24.22.1。要求 Node.js 24.15 及以上的 24.x 版本。移动源码到其他目录后，如未携带依赖，运行 `npm ci --ignore-scripts`；验证运行 `npm test`。
+`--no-launch` 仅供离线副本测试或人工验证：不启动应用、不等待界面就绪。正常安装请使用默认选项。移动源码到其他目录后，如未携带依赖，运行 `npm ci --ignore-scripts`。
 
 ## 安装方式与签名
 
-最终采用用户选择的**原位资源替换**：保留应用目录及原厂可执行文件、Electron 框架、权限声明和保护标志；只替换 `Contents/Resources/app.asar`，并增加一个补丁标记文件。没有修改 shell 配置、账户令牌、项目文件或模型服务地址。
+采用**原位资源替换**：保留应用目录、原厂可执行文件、Electron 框架、权限和保护标志。Mac 只替换 `Contents/Resources/app.asar`，Windows 只替换 `resources/app.asar`，另增加同目录补丁标记。Windows 逐项保留并核对文件属性与 DACL。没有修改 shell 配置、账户令牌、项目文件或模型服务地址。
 
 重新打包使用官方 `@electron/asar`；JS 改动按 AST 节点定位。完整原版应用会保存到：
 
 ```
-~/Library/Application Support/Antigravity zh-CN/backups/
+Mac:     ~/Library/Application Support/Antigravity zh-CN/backups/
+Windows: %LOCALAPPDATA%\Antigravity zh-CN\instances\<安装路径标识>\backups\
 ```
 
-备份按版本和原始归档指纹分别保存，不覆盖已有完整备份。应用其他文件逐项比对，任何意外改变都会阻止安装。写入前记录事务，资源文件在同一文件系统原子替换；中断后可重新执行 `restore` 恢复。
+备份按版本和原始归档指纹保存，不覆盖已有完整备份。Windows 额外按安装路径隔离，要求应用与状态目录所在卷各有至少 2 GiB 空间。应用其他文件逐项比对，意外改变会阻止安装。写入前记录事务，在资源目录内暂存并替换文件；中断后正常退出应用，再运行 `restore`。
 
-**修改资源后，整个应用包的原厂资源封印会失效。**这与“可执行代码仍保持 Google 签名”是两回事。`status` 会如实显示这一状态。工具检查原厂代码签名、完整的本地文件清单和补丁哈希，而不会把修改后的包宣称为原厂完整签名有效。
+Windows 启动后等待最多 60 秒，确认对应安装、进程、版本的中文界面就绪。失败且应用已退出时自动还原；应用仍在运行时保留事务与备份，提示正常退出再恢复，避免强制结束任务。文件被占用、升级、陌生补丁或备份损坏时拒绝覆盖。
 
-该版本原厂未启用 Electron ASAR 头部强制校验。工具先验证此配置，没有修改 Electron fuses，也没有改写签名覆盖的 Info.plist。归档内部的文件完整性数据由官方打包工具重新生成。
+**Mac：修改资源后，整个应用包的原厂资源封印会失效。**这与“可执行代码仍保持 Google 签名”是两回事。`status` 会如实显示。恢复后校验原厂完整签名；未关闭 Gatekeeper、SIP 或动态库校验，没有重新签名应用。历史 Mac 已实测可启动；另一设备的系统评估仍可能拦截，遇到时先恢复原版。
 
-没有关闭 Gatekeeper、SIP 或动态库校验，没有清除隔离/来源属性，也没有重新签名应用。此 Mac 已实测原位替换后正常启动；换设备、重新下载或系统重新评估后仍可能受到系统拦截，遇到这种情况先恢复原版，不自动绕过保护。
+**Windows：官方 2.26.0 安装器有有效 Google LLC 签名，但其内的 `Antigravity.exe` 与 `language_server.exe` 本来就是未签名文件。**适配数据来自核验后的官方安装包，安装前比对 425 个分发文件及可选官方卸载器。状态显示 `NotSigned` 是原厂状态，不能将其描述成“恢复后签名有效”。
+
+这两个适配版本原厂均未强制校验 ASAR 头部。工具核对已验证的 Electron 保护配置，不修改 fuses 或可执行文件。归档完整性由锁定的官方 `@electron/asar` 重新生成；Windows 打包额外用同一库的编码器保留原归档的 executable 元数据，并逐文件复核。
 
 ## 升级与恢复
 
 升级顺序：**恢复原版 → 使用官方更新 → 检查新版本是否已有适配 → 重新汉化**。
 
-目前只有 2.25.0 的适配指纹。应用升级后，工具会拒绝写入或将旧资源覆盖到新版。若更新已发生且旧补丁异常，应重新安装相应版本的官方应用；不要手工复制旧备份中的单个资源到新版。
+目前只有 macOS arm64 2.25.0 和 Windows x64 2.26.0 的适配指纹。应用升级后，工具拒绝写入，包括拒绝将旧资源恢复到新版。若更新已发生且旧补丁异常，应重新安装相应版本的官方应用；不要手工复制旧备份中的单个资源到新版。
 
-诊断与事务记录仅保存在本机的 `~/Library/Application Support/Antigravity zh-CN/`。运行就绪记录只包含版本、进程号、时间和翻译计数，不包含对话、账号或令牌。没有额外的网络请求、常驻服务或后台补丁任务。
+诊断与事务记录保存在上述本机状态目录。运行就绪记录只包含版本、进程号、路径、安装标识、时间和翻译计数，不包含对话、账号或令牌。补丁没有额外的网络请求、常驻服务或后台任务。
 
 ## 翻译范围与限制
 
@@ -75,7 +78,9 @@ node src/cli.js restore
 
 不是 100% 全覆盖：服务端新增公告、第三方插件页面、技能说明正文和未经历的错误状态仍可能保留英文。为避免误改用户命名和自定义内容，无法确认属于应用固定文案的区域保留原文。已核对的首页图标提示、模型提示标记、显示菜单、自动化表单、插件操作和搜索占位文字已补齐。
 
-详细验证记录见 `验证记录.md`；第三方词条来源及 MIT 授权见 `THIRD_PARTY_NOTICES.md` 与 `licenses/`。
+Windows 词库共 1111 条，增加 WSL 固定菜单文案；WSL 发行版名和动态右键菜单项保留原文。原生右键菜单仅翻译已核实的命令 ID 与标签组合，不改变 ID、快捷键或回调。
+
+第三方词条来源及 MIT 授权见 `THIRD_PARTY_NOTICES.md` 与 `licenses/`。以下记录为历史 Mac 版本，不代表本次 Windows 的实机范围。
 
 ## 第二版译文（2026-10-23）
 

@@ -17,7 +17,8 @@ export function walk(node, fn) {
     else if (value && typeof value === 'object') walk(value, fn);
   }
 }
-export function patchModule(name, source) {
+export function patchModule(name, source, adapterOverride=adapter, options={}) {
+  const adapter=adapterOverride;
   if (hash(source) !== adapter.modules[`dist/${name}.js`]) throw Error(`${name}: 文件指纹不匹配`);
   const code = source.toString();
   const out = new MagicString(code);
@@ -27,6 +28,8 @@ export function patchModule(name, source) {
   const replace = (node, text) => { out.overwrite(node.start,node.end,text); changes++; };
   const raw = node => code.slice(node.start,node.end);
   walk(ast, n => {
+    if(adapter.platform==='win32'&&name==='ipcHandlers'&&n.type==='LogicalExpression'&&raw(n)==="item.label ?? ''")
+      replace(n,"require('./ag-zh-native').translateContextItem(item)");
     if (name === 'menu') {
       if (n.type === 'MemberExpression' && raw(n) === 'updater_1.updateActions[menuItem.label]')
         replace(n, 'updater_1.updateActions[menuItem.__agZhSourceLabel || menuItem.label]');
@@ -75,36 +78,54 @@ electron_1.ipcMain.on('ag-zh:ready', (event, state) => {
   try {
     if (!electron_1.BrowserWindow.fromWebContents(event.sender) || event.senderFrame !== event.sender.mainFrame || state?.version !== '1.0.0') return;
     const fs = require('fs'), path = require('path');
-    const dir = path.join(require('os').homedir(), 'Library/Application Support/Antigravity zh-CN');
+    const file = ${options.healthFile ? JSON.stringify(options.healthFile) : "path.join(require('os').homedir(), 'Library/Application Support/Antigravity zh-CN/health.json')"};
+    const dir = path.dirname(file);
     fs.mkdirSync(dir, {recursive:true, mode:0o700});
-    const file = path.join(dir, 'health.json');
-    fs.writeFileSync(file + '.tmp', JSON.stringify({pid:process.pid, version:electron_1.app.getVersion(), patchVersion:state.version, translated:state.translated, appPath:electron_1.app.getAppPath(), time:Date.now()}), {mode:0o600});
+    fs.writeFileSync(file + '.tmp', JSON.stringify({pid:process.pid, version:electron_1.app.getVersion(), patchVersion:state.version, translated:state.translated, appPath:electron_1.app.getAppPath(), installationId:${JSON.stringify(options.installationId||null)}, time:Date.now()}), {mode:0o600});
     fs.renameSync(file + '.tmp', file);
   } catch { console.warn('[AG-ZH] health acknowledgment unavailable'); }
 });
 `);
-  const expected = {menu:4,updater:4,tray:3,main:6,preload:1,ipcHandlers:3};
+  const expected = {menu:4,updater:4,tray:3,main:6,preload:1,ipcHandlers:adapter.platform==='win32'?5:3};
   if(changes!==expected[name]) throw Error(`${name}: 预期 ${expected[name]} 个修改点，实际 ${changes}`);
   const result=out.toString();parse(result,{ecmaVersion:'latest'});return result;
 }
-export async function buildArchive(original, destination, scratch) {
+export async function buildArchive(original, destination, scratch, adapterOverride=adapter, options={}) {
+  const adapter=adapterOverride;
+  if(hash(fs.readFileSync(original))!==adapter.asarSha256)throw Error('原始归档指纹不匹配');
   asar.extractAll(original,scratch);
   for(const name of ['preload','menu','tray','updater','utils','main','ipcHandlers']) {
     const file=path.join(scratch,'dist',name+'.js');
-    fs.writeFileSync(file,patchModule(name,fs.readFileSync(file)));
+    fs.writeFileSync(file,patchModule(name,fs.readFileSync(file),adapter,options));
   }
   fs.copyFileSync(path.join(root,'src/native.cjs'),path.join(scratch,'dist/ag-zh-native.js'));
   fs.copyFileSync(path.join(root,'data/zh-CN.json'),path.join(scratch,'dist/ag-zh-dictionary.json'));
-  await asar.createPackageWithOptions(scratch,destination,{unpackDir:'node_modules/chrome-devtools-mcp'});
+  await asar.createPackageWithOptions(scratch.replaceAll('\\','/'),destination,{unpackDir:path.join('node_modules','chrome-devtools-mcp')});
+  // asar 4.3.1 omits executable flags when packing on Windows. Preserve the
+  // original archive's metadata with that same pinned package's Pickle encoder.
+  if(process.platform==='win32') {
+    const before=asar.getRawHeader(original).header;
+    const bytes=fs.readFileSync(destination),after=JSON.parse(bytes.subarray(16,16+bytes.readUInt32LE(12)));
+    const preserve=(old,next)=>{for(const [name,entry] of Object.entries(old.files||{})) {
+      if(!next.files?.[name])throw Error('归档文件缺失：'+name);
+      if(entry.files)preserve(entry,next.files[name]);
+      else if(Object.hasOwn(entry,'executable'))next.files[name].executable=entry.executable;
+    }};
+    preserve(before,after);
+    const {Pickle}=await import(new URL('./pickle.js',import.meta.resolve('@electron/asar')).href);
+    const header=new Pickle();header.writeString(JSON.stringify(after));
+    const size=new Pickle();size.writeUInt32(header.toBuffer().length);
+    fs.writeFileSync(destination,Buffer.concat([size.toBuffer(),header.toBuffer(),bytes.subarray(8+bytes.readUInt32LE(4))]));
+  }
   asar.uncacheAll();
   const changed=new Set(Object.keys(adapter.modules));
   // Every original file is preserved byte-for-byte unless explicitly patched.
   for(const entry of asar.listPackage(original)) {
-    const p=entry.slice(1), old=asar.statFile(original,p), next=asar.statFile(destination,p);
+    const p=entry.replaceAll('\\','/').replace(/^\//,''), nativePath=path.normalize(p), old=asar.statFile(original,nativePath), next=asar.statFile(destination,nativePath);
     if(old.files) {if(!next.files)throw Error('归档目录变化: '+p);continue;}
     if(Boolean(old.unpacked)!==Boolean(next.unpacked)||old.link!==next.link||Boolean(old.executable)!==Boolean(next.executable)) throw Error('归档结构变化: '+p);
     if(old.link)continue;
-    if(!changed.has(p)&&!asar.extractFile(original,p).equals(asar.extractFile(destination,p))) throw Error('意外修改: '+p);
+    if(!changed.has(p)&&!asar.extractFile(original,nativePath).equals(asar.extractFile(destination,nativePath))) throw Error('意外修改: '+p);
   }
   const bytes=fs.readFileSync(destination);
   return {asarSha256:hash(bytes),headerSha256:hash(bytes.subarray(16,16+bytes.readUInt32LE(12)))};

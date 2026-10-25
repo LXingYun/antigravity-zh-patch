@@ -48,7 +48,7 @@ export async function treeManifest(dir) {
   const result={};
   async function visit(rel) {
     for(const name of (await fs.readdir(path.join(dir,rel))).sort()) {
-      const child=path.join(rel,name), full=path.join(dir,child), stat=await fs.lstat(full);
+      const child=path.posix.join(rel,name), full=path.join(dir,child), stat=await fs.lstat(full);
       if(stat.isSymbolicLink()) result[child]={link:await fs.readlink(full)};
       else if(stat.isDirectory()) { result[child]={directory:true,mode:stat.mode&0o777};await visit(child); }
       else result[child]={sha256:await shaFile(full),mode:stat.mode&0o777};
@@ -70,12 +70,14 @@ export function verifyOriginalCode(app) {
   if(!display.stderr.includes('TeamIdentifier=EQHXZ8M8AV')||!display.stderr.includes('runtime'))
     throw Error('原厂代码签名或加固运行时标志已改变。');
 }
-export function assertResourceOnly(before,after) {
-  const archive='Contents/Resources/app.asar',marker='Contents/Resources/ag-zh-patch.json';
+export function assertResourceOnly(before,after,layout={archive:'Contents/Resources/app.asar',marker:'Contents/Resources/ag-zh-patch.json'}) {
+  const {archive,marker}=layout;
   for(const key of new Set([...Object.keys(before),...Object.keys(after)])) {
     if(key===marker)continue;
     if(key===archive) {
-      if(before[key]?.mode!==after[key]?.mode||!after[key]?.sha256)throw Error('归档权限变化');
+      const {sha256:oldHash,...oldMetadata}=before[key]||{};
+      const {sha256:newHash,...newMetadata}=after[key]||{};
+      if(!oldHash||!newHash||JSON.stringify(oldMetadata)!==JSON.stringify(newMetadata))throw Error('归档权限变化');
     } else if(JSON.stringify(before[key])!==JSON.stringify(after[key])) throw Error('资源补丁意外改变原厂文件：'+key);
   }
 }

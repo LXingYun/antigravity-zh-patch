@@ -1107,5 +1107,7 @@
   "Cron expression e.g. 0 */6 * * *": "Cron 表达式，例如 0 */6 * * *",
   "Prompt to run when triggered...": "输入触发后要执行的指令…",
   "Prompt to execute on schedule...": "输入定时执行的指令…",
-  "Gemini 4 Argon is currently available to Ultra and paid Pro plan subscribers.": "Gemini 4 Argon 目前仅向 Ultra 和付费 Pro 套餐用户开放。"
+  "Gemini 4 Argon is currently available to Ultra and paid Pro plan subscribers.": "Gemini 4 Argon 目前仅向 Ultra 和付费 Pro 套餐用户开放。",
+  "Connect to WSL": "连接到 WSL",
+  "Reopen Locally": "在本机重新打开"
 }

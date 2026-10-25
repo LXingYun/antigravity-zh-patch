@@ -1,0 +1,26 @@
+node_modules/
+*.log
+.DS_Store
+
+# Local verification receipts, credentials, app copies and build artifacts.
+验证结果.json
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.asar
+*.asar.unpacked/
+*.app/
+*.exe
+*.dll
+*.dmg
+*.zip
+backups/
+transactions/
+work/
+build/
+coverage/
+fixtures/local/

@@ -1,0 +1,19 @@
+{
+  "version": "2.25.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "bundleId": "com.google.antigravity",
+  "teamId": "EQHXZ8M8AV",
+  "asarSha256": "ad7fb1a177a11522490cba910c0970a117bec568cd9ad85233fa62873361ed05",
+  "serverSha256": "060ebf79719024f1b3acb52a21c7a182cb6466b2ac4ac25e93391169b1c1bb46",
+  "modules": {
+    "dist/preload.js": "81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60",
+    "dist/menu.js": "0bb689f3f77f5f30d9345302ff94ebabbe461c4b94de9ffdb711a19eeca0f04f",
+    "dist/tray.js": "6c6b0968b45a1c7088e459657d57a9efd72d3733614349095f17b6ee94b47135",
+    "dist/updater.js": "d8f44a0bb440c3f20ce0564bf46de80defe709d7f088f00b738726c7b9120e1b",
+    "dist/utils.js": "6f01d746963c0cd964dbcb057ed34374c129c4381b5ebddd2509ca37b12519a7",
+    "dist/main.js": "afadfbb9c0880f081dd763caa2b9525b2590631ab8fd58cd82e2d67075df1a42",
+    "dist/ipcHandlers.js": "0a58fe6eba5b985702d5f81ec18e8efd71a9aa017e250cc9446055d8040e9524"
+  },
+  "frontendSha256": "91c2d259d53a16b0cb9afe87e5d9f173ba613a46a076032a179ac5eca5101463"
+}

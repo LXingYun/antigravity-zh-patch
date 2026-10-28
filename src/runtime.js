@@ -68,6 +68,17 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     // Explicit templates preserve numbers; no substring replacement.
     if (value === undefined && /^\d+ agents? running$/.test(key)) value = `${key.split(' ')[0]} 个智能体正在运行`;
     if (value === undefined && el?.closest('.settings-modal-container') && key.startsWith('Send feedback as ')) value = '以 ' + key.slice(17) + ' 的身份发送反馈';
+    if (value === undefined && el?.closest('.settings-modal-container')) {
+      const weekly=key.match(/^You have used some of your weekly limit, it will fully refresh in (\d+ (?:days?|hours?|minutes?)(?:, \d+ (?:days?|hours?|minutes?))*)\.$/);
+      if (weekly) {
+        const units={day:'天',hour:'小时',minute:'分钟'};
+        const duration=weekly[1].split(', ').map(part=>{
+          const [,count,unit]=part.match(/^(\d+) (day|hour|minute)s?$/);
+          return `${count} ${units[unit]}`;
+        }).join(' ');
+        value=`本周配额已使用一部分，将在 ${duration}后完全恢复。`;
+      }
+    }
     if (value === undefined && el?.closest('[data-testid="customizations-empty-state"]')) {
       const empty = key.match(/^No plugins found for "(.*)"\.$/);
       const search = key.match(/^Search for "(.*)" in the Marketplace$/);
@@ -85,14 +96,14 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
   const deniedIds = new Set([...deny.matchAll(/\[data-testid="([^"]+)"\]/g)].map(m=>m[1]));
   const uiIdSet = new Set(uiIds);
   const roles = new Set(['dialog','alertdialog','menu','menuitem','menuitemradio','option','tooltip','alert']);
-  const settingsNav = new Set(['General','App','Application','Appearance','Notifications','Models','Conversations','Shortcuts','Provide Feedback','Projects','Workspaces']);
+  const settingsNav = new Set(['General','App','Application','Appearance','Notifications','Models','Conversations','Shortcuts','Provide Feedback','Give Feedback','Projects','Workspaces']);
   // These wrappers mix app chrome with user-owned names. They remain blocked by
   // default; only the exact badges, headings and attributes below may be translated.
   const mixedIds = new Set(['model-selector-trigger','project-selector-trigger',
     'project-customizations-content','workspace-customizations-view','customization-card','sidecar-row']);
   const chromeAttributes = new Set(['Display Options','More Actions','Go Back','Go Forward',
     'Toggle Sidebar','Toggle sidebar','Toggle Sidebar, conversations need attention',
-    'Search Conversations','Typeahead menu','Sidebar','Notifications','Copy path','Copy Path',
+    'Search Conversations','Sort and filter conversations','Typeahead menu','Sidebar','Notifications','Copy path','Copy Path',
     'Copy Config File Path','Copied','Path copied!','Clear search',
     'Customizations views','Customizations source','Create plugin','Dismiss error',
     'Actions','Add automation','Select model','Context window','Search customizations...',

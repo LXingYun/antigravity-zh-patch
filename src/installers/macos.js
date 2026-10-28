@@ -6,6 +6,7 @@ import { adapter, root, hash, buildArchive } from '../patch.js';
 import { run, exists, readJSON, writeJSON, shaFile, plist, verifySignature, runningPids,
   requireStopped, treeManifest, verifyTree, copyApp, verifyOriginalCode, assertResourceOnly, withLock } from '../platform.js';
 import { exchangeResources, commit, rollbackResources, pendingTransactions } from '../transaction.js';
+import { selectAdapter } from '../adapters.js';
 export const defaultApp='/Applications/Antigravity.app';
 export const stateDir=path.join(os.homedir(),'Library/Application Support/Antigravity zh-CN');
 const resources=app=>path.join(app,'Contents/Resources');
@@ -13,9 +14,9 @@ const archive=app=>path.join(resources(app),'app.asar');
 const markerPath=app=>path.join(resources(app),'ag-zh-patch.json');
 const transactions=path.join(stateDir,'transactions');
 const currentFile=path.join(stateDir,'current.json');
-export async function recipeHash() {
-  const names=['src/patch.js','src/runtime.js','src/native.cjs','data/zh-CN.json','data/adapter-2.25.0.json'];
-  return hash(Buffer.concat(await Promise.all(names.map(n=>fs.readFile(path.join(root,n))))));
+export async function recipeHash(selected=adapter) {
+  const names=['src/patch.js','src/runtime.js','src/native.cjs','data/zh-CN.json'];
+  return hash(Buffer.concat([...(await Promise.all(names.map(n=>fs.readFile(path.join(root,n))))),Buffer.from(JSON.stringify(selected))]));
 }
 function platformCheck() {
   if(process.platform!=='darwin'||process.arch!=='arm64')throw Error('仅支持 Apple Silicon macOS。');
@@ -27,12 +28,13 @@ export async function inspect(app=defaultApp) {
   if(!await exists(app))throw Error('找不到应用：'+app);
   if((await fs.lstat(app)).isSymbolicLink())throw Error('拒绝对应用符号链接执行安装。');
   const version=plist(app,'CFBundleShortVersionString');
-  if(version!==adapter.version)throw Error(`当前版本 ${version}，补丁仅适配 ${adapter.version}。请勿使用旧补丁覆盖新版本。`);
+  const adapter=selectAdapter(process.platform,process.arch,version);
   if(plist(app,'CFBundleIdentifier')!==adapter.bundleId)throw Error('应用标识不匹配');
   for(const p of ['app','app.asar.disabled','app.asar.bak'])if(await exists(path.join(resources(app),p)))throw Error('发现其他补丁或资源副本：'+p);
   const framework=await fs.readFile(path.join(app,'Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework'));
   const fuse=framework.indexOf('dL7pKGdnNz796PbbjQWNKmHXBZaB9tsX');
-  if(fuse<0||framework[fuse+32]!==1||framework[fuse+33]!==9||framework.subarray(fuse+34,fuse+43).toString()!=='101100011')throw Error('原厂 Electron 保护配置与适配版本不符，拒绝修改。');
+  const expectedFuses=adapter.fuses||{version:1,count:9,values:'101100011'};
+  if(fuse<0||framework[fuse+32]!==expectedFuses.version||framework[fuse+33]!==expectedFuses.count||framework.subarray(fuse+34,fuse+34+expectedFuses.count).toString()!==expectedFuses.values)throw Error('原厂 Electron 保护配置与适配版本不符，拒绝修改。');
   const asarSha256=await shaFile(archive(app));
   if(await shaFile(path.join(resources(app),'bin/language_server'))!==adapter.serverSha256)throw Error('界面服务文件指纹不匹配');
   let marker=null;
@@ -105,19 +107,19 @@ async function prepareTransaction(app,stage,backup,kind,priorRecord) {
     beforeMarker:await exists(markerPath(app))?await readJSON(markerPath(app)):null,
     afterMarker:await exists(markerPath(stage))?await readJSON(markerPath(stage)):null};
 }
-async function health(app,since) {
+async function health(app,since,version) {
   try {
     const h=await readJSON(path.join(stateDir,'health.json'));
-    if(h.time<since||h.version!==adapter.version||h.patchVersion!=='1.0.0'||
+    if(h.time<since||h.version!==version||h.patchVersion!=='1.0.0'||
        path.resolve(h.appPath)!==archive(app)||!runningPids(app).includes(h.pid))return null;
     return h;
   } catch {return null;}
 }
-async function launchCheck(app,since) {
+async function launchCheck(app,since,version) {
   run('/usr/bin/open',['-a',app]);
   const until=Date.now()+30000;
   while(Date.now()<until) {
-    const h=await health(app,since);if(h)return h;
+    const h=await health(app,since,version);if(h)return h;
     await new Promise(resolve=>setTimeout(resolve,300));
   }
   throw Error('启动后 30 秒内未收到中文界面就绪确认。');
@@ -134,16 +136,19 @@ export async function status(app=defaultApp) {
   if(!await exists(app))return {app,installed:false,pending:pending.map(p=>p.journal),message:'应用路径暂时缺失；退出应用后运行 restore 恢复中断事务。'};
   const info=await inspect(app);
   const record=await exists(currentFile)?await readJSON(currentFile):null;
+  const matchingRecord=record?.app===app&&record.version===info.version?record:null;
+  const adapter=selectAdapter(process.platform,process.arch,info.version);
   return {...info,marker:undefined,signature:info.installed?'原厂代码签名保留；应用资源封印已改变':'原厂完整签名有效',pending:pending.map(p=>p.journal),
-    backup:record?.backup,recipeCurrent:info.marker?info.marker.recipe===await recipeHash():true,
-    health:info.installed?await health(app,record?.installedAt??0):null};
+    backup:matchingRecord?.backup,recipeCurrent:info.marker?info.marker.recipe===await recipeHash(adapter):true,
+    health:info.installed?await health(app,matchingRecord?.installedAt??0,info.version):null};
 }
 export async function install(app=defaultApp,{launch=true,log=console.log}={}) {
   return withLock(stateDir,async()=>{
     await recoverPending(app);
     const info=await inspect(app);
+    const adapter=selectAdapter(process.platform,process.arch,info.version);
     if(info.installed) {
-      if(info.marker.recipe!==await recipeHash())throw Error('已安装另一构建的中文补丁；请先 restore 再 install。');
+      if(info.marker.recipe!==await recipeHash(adapter))throw Error('已安装另一构建的中文补丁；请先 restore 再 install。');
       log('同一补丁已安装，不会重复注入。');return status(app);
     }
     requireStopped(app);
@@ -155,15 +160,15 @@ export async function install(app=defaultApp,{launch=true,log=console.log}={}) {
     try {
       log('构建中文资源并校验其他原厂文件保持不变…');
       await fs.mkdir(build,{recursive:true,mode:0o700});await copyApp(backup.copy,stage);
-      const result=await buildArchive(archive(backup.copy),archive(stage),path.join(build,'extracted'));
-      const marker={mode:'resource-only',version:adapter.version,patchVersion:'1.0.0',recipe:await recipeHash(),originalAsarSha256:adapter.asarSha256,...result};
+      const result=await buildArchive(archive(backup.copy),archive(stage),path.join(build,'extracted'),adapter);
+      const marker={mode:'resource-only',version:adapter.version,patchVersion:'1.0.0',recipe:await recipeHash(adapter),originalAsarSha256:adapter.asarSha256,...result};
       await writeJSON(markerPath(stage),marker);verifyOriginalCode(stage);
       assertResourceOnly(backup.tree,await treeManifest(stage));
       tx=await prepareTransaction(app,stage,backup.dir,'install',await exists(currentFile)?await readJSON(currentFile):null);
       journal=path.join(transactions,tx.id+'.json');
       await exchangeResources(tx,journal,async()=>{requireStopped(app);await inspect(app);await verifyTree(app,backup.tree);});
       let startup=null;
-      if(launch) {log('启动并等待中文界面就绪…');launchAttempted=true;startup=await launchCheck(app,installedAt);}
+      if(launch) {log('启动并等待中文界面就绪…');launchAttempted=true;startup=await launchCheck(app,installedAt,info.version);}
       await writeJSON(currentFile,{app,version:adapter.version,backup:backup.dir,installedAt,marker,tree:tx.afterTree,startupVerified:!!startup});
       await commit(tx,journal);committed=true;
       await fs.rm(build,{recursive:true,force:true});

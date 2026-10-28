@@ -28,7 +28,7 @@ export function patchModule(name, source, adapterOverride=adapter, options={}) {
   const replace = (node, text) => { out.overwrite(node.start,node.end,text); changes++; };
   const raw = node => code.slice(node.start,node.end);
   walk(ast, n => {
-    if(adapter.platform==='win32'&&name==='ipcHandlers'&&n.type==='LogicalExpression'&&raw(n)==="item.label ?? ''")
+    if((adapter.platform==='win32'||adapter.contextMenu)&&name==='ipcHandlers'&&n.type==='LogicalExpression'&&raw(n)==="item.label ?? ''")
       replace(n,"require('./ag-zh-native').translateContextItem(item)");
     if (name === 'menu') {
       if (n.type === 'MemberExpression' && raw(n) === 'updater_1.updateActions[menuItem.label]')
@@ -86,7 +86,7 @@ electron_1.ipcMain.on('ag-zh:ready', (event, state) => {
   } catch { console.warn('[AG-ZH] health acknowledgment unavailable'); }
 });
 `);
-  const expected = {menu:4,updater:4,tray:3,main:6,preload:1,ipcHandlers:adapter.platform==='win32'?5:3};
+  const expected = {menu:4,updater:4,tray:3,main:6,preload:1,ipcHandlers:(adapter.platform==='win32'||adapter.contextMenu)?5:3};
   if(changes!==expected[name]) throw Error(`${name}: 预期 ${expected[name]} 个修改点，实际 ${changes}`);
   const result=out.toString();parse(result,{ecmaVersion:'latest'});return result;
 }

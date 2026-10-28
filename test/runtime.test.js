@@ -11,6 +11,29 @@ async function fixture(html) {
   await delay(150);
   return {dom,state,doc:dom.window.document,close:()=>dom.window.close()};
 }
+test('2.27 设置反馈入口与配额恢复提示翻译，保留账号名、正文及动态数字',async()=>{
+  const source='You have used some of your weekly limit, it will fully refresh in 3 days, 16 hours.';
+  const f=await fixture(`<div class="settings-modal-container">
+    <button data-testid="settings-nav-item-Give Feedback">Give Feedback</button>
+    <button data-testid="settings-nav-item-Account">Give Feedback</button>
+    <p id="quota">${source}</p><textarea>${source}</textarea></div>
+    <div data-testid="planner-response-text">${source}</div><p id="outside">${source}</p>
+    <button id="filter" aria-label="Sort and filter conversations"></button>
+    <div role="menu"><span id="archived">Only Archived</span><span id="automations">Only Automations</span></div>`);
+  try {
+    assert.equal(f.doc.querySelector('[data-testid="settings-nav-item-Give Feedback"]').textContent,'提供反馈');
+    assert.equal(f.doc.querySelector('[data-testid="settings-nav-item-Account"]').textContent,'Give Feedback');
+    assert.equal(f.doc.querySelector('#quota').textContent,'本周配额已使用一部分，将在 3 天 16 小时后完全恢复。');
+    assert.equal(f.doc.querySelector('#filter').getAttribute('aria-label'),'对话排序与筛选');
+    assert.equal(f.doc.querySelector('#archived').textContent,'仅显示已归档');
+    assert.equal(f.doc.querySelector('#automations').textContent,'仅显示自动化');
+    for(const q of ['textarea','[data-testid="planner-response-text"]','#outside'])assert.equal(f.doc.querySelector(q).textContent,source);
+    f.doc.querySelector('#quota').firstChild.nodeValue='You have used some of your weekly limit, it will fully refresh in 1 hour, 2 minutes.';
+    await delay(100);
+    assert.equal(f.doc.querySelector('#quota').textContent,'本周配额已使用一部分，将在 1 小时 2 分钟后完全恢复。');
+    assert.equal(f.state.errors,0);
+  }finally{f.close();}
+});
 test('真实界面标记：翻译设置和操作，保护正文、模型名、路径和用户命名',async()=>{
   const f=await fixture(`<div class="settings-modal-container">
     <h2 id="title">General</h2><button id="edit">Edit</button>

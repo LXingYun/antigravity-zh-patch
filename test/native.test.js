@@ -24,7 +24,7 @@ test('WSL 用户命名与原生右键菜单未知标签保持原样，固定命�
 });
 
 test('真实原生右键菜单构建保留命令 ID、回调与快捷键',{skip:!original||!(selectedAdapter.platform==='win32'||selectedAdapter.contextMenu)},()=>{
- const mocks={'electron':{},'electron-updater':{},'./types':{},'./updater':{},'electron-log/main':{},'./customScheme':{},'./tray':{},'./ideInstall/constants':{},'./wsl':{},'./menu':{},'./utils':{},'./ag-zh-native':native};
+ const mocks={'electron':{},'electron-updater':{},'./types':{},'./updater':{},'electron-log/main':{},'./customScheme':{},'./tray':{},'./ideInstall/constants':{},'./wsl':{},'./menu':{},'./scriptJail':{},'./utils':{},'./ag-zh-native':native};
  const m=load('ipcHandlers',mocks,'\nexports.testMenu=buildContextMenuTemplate;');let selected;
  const result=m.testMenu([{id:'copy',label:'Copy',accelerator:'Ctrl+C'},{id:'user',label:'Settings'},{id:'group',label:'New Project',type:'submenu',submenu:[{id:'rename',label:'Rename'}]}],id=>selected=id);
  assert.equal(result[0].label,'复制');assert.equal(result[0].accelerator,'Ctrl+C');result[0].click();assert.equal(selected,'copy');
@@ -76,11 +76,28 @@ test('未知资源被拒绝，预加载保留原 API 且只注入一次',require
 test('原生文件夹选择框标题汉化，保留路径、选项和取消行为',requiresOriginal,async()=>{
  const handlers=new Map();let options,canceled=false;
  const electron={ipcMain:{handle:(id,fn)=>handlers.set(id,fn),on(){}},dialog:{showOpenDialog:async o=>{options=o;return {canceled,filePaths:['/tmp/Settings']};}}};
- const mocks={'electron':electron,'electron-updater':{},'./types':{},'./updater':{},'electron-log/main':{},'./customScheme':{},'./tray':{},'./ideInstall/constants':{},'./wsl':{getActiveWslDistro:()=>null},'./menu':{},'./utils':{},'./ag-zh-native':native};
+ const mocks={'electron':electron,'electron-updater':{},'./types':{},'./updater':{},'electron-log/main':{},'./customScheme':{},'./tray':{},'./ideInstall/constants':{},'./wsl':{getActiveWslDistro:()=>null},'./menu':{},'./scriptJail':{},'./utils':{},'./ag-zh-native':native};
  const module=load('ipcHandlers',mocks);module.registerIpcHandlers({});
  assert.equal(await handlers.get('dialog:open-workspace')(),'/tmp/Settings');assert.equal(options.title,'打开工作区');
  assert.equal(Array.from(options.properties).join(','),'openDirectory,createDirectory');
  assert.equal(Array.from(await handlers.get('dialog:open-workspaces')()).join(','),'/tmp/Settings');assert.equal(options.title,'打开工作区');
  assert.equal(Array.from(options.properties).join(','),'openDirectory,createDirectory,multiSelections');
  canceled=true;assert.equal(await handlers.get('dialog:open-workspace')(),undefined);assert.equal((await handlers.get('dialog:open-workspaces')()).length,0);
+});
+
+test('2.28 脚本隔离接口仍传递原始请求、发送方和调用帧',{
+ skip:!original||!asar.listPackage(original).includes('/dist/scriptJail.js')
+},async()=>{
+ const handlers=new Map(),calls=[];
+ const electron={ipcMain:{handle:(id,fn)=>handlers.set(id,fn),on(){}}};
+ const jail={
+  runScriptInJail:(...args)=>{calls.push(['run',...args]);return Promise.resolve({jailId:'test-jail'});},
+  abortScriptInJail:(...args)=>{calls.push(['abort',...args]);return true;}
+ };
+ const mocks={'electron':electron,'electron-updater':{},'./types':{},'./updater':{},'electron-log/main':{},'./customScheme':{},'./tray':{},'./ideInstall/constants':{},'./wsl':{},'./menu':{},'./scriptJail':jail,'./utils':{},'./ag-zh-native':native};
+ load('ipcHandlers',mocks).registerIpcHandlers({});
+ const sender={},senderFrame={},request={code:'Settings New Project'},event={sender,senderFrame};
+ assert.deepEqual(await handlers.get('script-jail:run')(event,request),{jailId:'test-jail'});
+ assert.equal(handlers.get('script-jail:abort')(event,'test-jail'),true);
+ assert.deepEqual(calls,[['run',sender,request,senderFrame],['abort',sender,'test-jail',senderFrame]]);
 });

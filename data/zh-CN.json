@@ -1113,5 +1113,11 @@
   "Prompt to execute on schedule...": "输入定时执行的指令…",
   "Gemini 4 Argon is currently available to Ultra and paid Pro plan subscribers.": "Gemini 4 Argon 目前仅向 Ultra 和付费 Pro 套餐用户开放。",
   "Connect to WSL": "连接到 WSL",
-  "Reopen Locally": "在本机重新打开"
+  "Reopen Locally": "在本机重新打开",
+  "Built-in Browser": "内置浏览器",
+  "Configure link opening and built-in browser preferences.": "设置链接打开方式和内置浏览器偏好。",
+  "Open Links In": "链接打开方式",
+  "Choose where links open by default when clicked.": "选择点击链接时默认使用的浏览器。",
+  "External Browser": "外部浏览器",
+  "Browser Subagent": "浏览器子智能体"
 }

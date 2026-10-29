@@ -11,6 +11,28 @@ async function fixture(html) {
   await delay(150);
   return {dom,state,doc:dom.window.document,close:()=>dom.window.close()};
 }
+test('2.28 浏览器设置标签翻译，保留选择状态、事件与同名用户内容',async()=>{
+  const f=await fixture(`<div class="settings-modal-container">
+    <h3>Built-in Browser</h3><p>Configure link opening and built-in browser preferences.</p>
+    <label>Open Links In</label><p>Choose where links open by default when clicked.</p>
+    <button role="radio" aria-checked="false" id="external">External Browser</button>
+    <button role="radio" aria-checked="true" id="builtin">Built-in Browser</button>
+    <h3>Browser Subagent</h3><textarea>Built-in Browser</textarea></div>
+    <div data-testid="planner-response-text">Built-in Browser</div>
+    <div data-project-name="Browser Subagent">Browser Subagent</div>`);
+  try {
+    assert.deepEqual([...f.doc.querySelectorAll('h3')].map(e=>e.textContent),['内置浏览器','浏览器子智能体']);
+    assert.equal(f.doc.querySelector('label').textContent,'链接打开方式');
+    assert.deepEqual([...f.doc.querySelectorAll('p')].map(e=>e.textContent),['设置链接打开方式和内置浏览器偏好。','选择点击链接时默认使用的浏览器。']);
+    const external=f.doc.querySelector('#external'),builtin=f.doc.querySelector('#builtin');
+    assert.equal(external.textContent,'外部浏览器');assert.equal(builtin.textContent,'内置浏览器');
+    assert.equal(external.getAttribute('aria-checked'),'false');assert.equal(builtin.getAttribute('aria-checked'),'true');
+    let clicked=0;external.addEventListener('click',()=>clicked++);external.click();assert.equal(clicked,1);
+    assert.equal(f.doc.querySelector('textarea').value,'Built-in Browser');
+    assert.equal(f.doc.querySelector('[data-testid="planner-response-text"]').textContent,'Built-in Browser');
+    assert.equal(f.doc.querySelector('[data-project-name]').textContent,'Browser Subagent');
+  }finally{f.close();}
+});
 test('2.27 设置反馈入口与配额恢复提示翻译，保留账号名、正文及动态数字',async()=>{
   const source='You have used some of your weekly limit, it will fully refresh in 3 days, 16 hours.';
   const f=await fixture(`<div class="settings-modal-container">

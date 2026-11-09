@@ -1,6 +1,6 @@
 # Windows 适配维护说明
 
-当前适配：Antigravity **App 2.26.0 / Windows x64**，以及 **App 2.25.0、2.27.0、2.28.0、2.28.1 / macOS arm64**。使用方法见 [README.md](README.md)，调研依据与初始方案见 [WINDOWS-ADAPTATION-PLAN.md](WINDOWS-ADAPTATION-PLAN.md)。Windows 2.27.0、2.28.0、2.28.1 尚未适配，不能使用 Mac 对应版本的资源指纹。
+当前适配：Antigravity **App 2.26.0 / Windows x64**，以及 **App 2.25.0、2.27.0、2.28.0、2.28.1、2.29.0 / macOS arm64**。使用方法见 [README.md](README.md)，调研依据与初始方案见 [WINDOWS-ADAPTATION-PLAN.md](WINDOWS-ADAPTATION-PLAN.md)。Windows 2.27.0、2.28.0、2.28.1、2.29.0 尚未适配，不能使用 Mac 对应版本的资源指纹。
 
 ## 平台边界
 

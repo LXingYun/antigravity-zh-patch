@@ -11,6 +11,34 @@ async function fixture(html) {
   await delay(150);
   return {dom,state,doc:dom.window.document,close:()=>dom.window.close()};
 }
+test('2.29 首页问候保留姓名，同名下载目录、草稿和对话不被翻译',async()=>{
+  const phrase='Hi Settings, what can we get done today?';
+  const f=await fixture(`<div data-testid="home-greeting"><h1>${phrase}</h1></div>
+    <div class="settings-modal-container"><label>Download Location</label>
+    <span data-testid="builtin-browser-download-dir-value">Settings</span>
+    <div data-testid="voice-settings-mic"><span>Settings</span></div></div>
+    <button data-testid="location-selector-trigger" aria-label="Where the agent runs, current: Settings"><span class="truncate">Settings</span></button>
+    <div role="menu"><div data-testid="location-cloud-dev" data-env-id="dev">New Project</div>
+    <div data-testid="location-local"><span class="truncate">This Computer</span></div></div>
+    <textarea>${phrase}</textarea><div data-testid="planner-response-text"><h1>${phrase}</h1></div>`);
+  try {
+    const greeting=f.doc.querySelector('h1');
+    assert.equal(greeting.textContent,'你好，Settings，今天想做点什么？');
+    assert.equal(f.doc.querySelector('label').textContent,'下载位置');
+    assert.equal(f.doc.querySelector('span').textContent,'Settings');
+    assert.equal(f.doc.querySelector('[data-testid="voice-settings-mic"]').textContent,'Settings');
+    const location = f.doc.querySelector('[data-testid="location-selector-trigger"]');
+    assert.equal(location.getAttribute('aria-label'),'智能体运行位置，当前：Settings');
+    assert.equal(location.textContent,'Settings');
+    assert.equal(f.doc.querySelector('[data-env-id="dev"]').textContent,'New Project');
+    assert.equal(f.doc.querySelector('[data-testid="location-local"]').textContent,'本机');
+    assert.equal(f.doc.querySelector('textarea').value,phrase);
+    assert.equal(f.doc.querySelector('[data-testid="planner-response-text"]').textContent,phrase);
+    greeting.firstChild.nodeValue='What can we get done today?';
+    await delay(100);
+    assert.equal(greeting.textContent,'今天想做点什么？');
+  }finally{f.close();}
+});
 test('2.28 浏览器设置标签翻译，保留选择状态、事件与同名用户内容',async()=>{
   const f=await fixture(`<div class="settings-modal-container">
     <h3>Built-in Browser</h3><p>Configure link opening and built-in browser preferences.</p>

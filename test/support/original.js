@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import * as asar from '@electron/asar';
 import {selectAdapter} from '../../src/adapters.js';
 const root=path.resolve(import.meta.dirname,'../..');
-export let selectedAdapter=selectAdapter(process.platform==='win32'?'win32':'darwin',process.platform==='win32'?'x64':'arm64',process.platform==='win32'?'2.26.0':'2.28.1');
+export let selectedAdapter=selectAdapter(process.platform==='win32'?'win32':'darwin',process.platform==='win32'?'x64':'arm64',process.platform==='win32'?'2.26.0':'2.29.0');
 const candidates=[];
 if(process.env.AG_ZH_ORIGINAL_ASAR)candidates.push(process.env.AG_ZH_ORIGINAL_ASAR);
 if(process.platform==='win32') {

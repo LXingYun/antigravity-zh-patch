@@ -53,7 +53,12 @@ export function patchModule(name, source, adapterOverride=adapter, options={}) {
         for (const e of n.value.elements) if (e.type === 'Literal' && words[e.value]) replace(e,t(raw(e)));
     }
     if (name === 'utils' && n.type === 'Property' && n.key.name === 'webPreferences') {
-      if(n.value.properties.some(p=>p.key.name==='additionalArguments')) throw Error('新增启动参数结构冲突');
+      // The Hub view inherits these preferences. Other views, including the
+      // script-free curtain in 2.29, must not receive the Hub origin argument.
+      if (adapter.hubViews && !(n.value.type === 'ObjectExpression' && n.value.properties.some(
+        p => p.key?.name === 'preload' && raw(p.value) === "path_1.default.join(__dirname, 'preload.js')"
+      ))) return;
+      if(n.value.properties.some(p=>p.key?.name==='additionalArguments')) throw Error('新增启动参数结构冲突');
       if(code.slice(n.value.properties.at(-1).end,n.value.end-1).trim() !== ',') throw Error('窗口属性分隔符不匹配');
       out.appendLeft(n.value.end-1, `additionalArguments: ['--ag-zh-origin=' + new URL(url).origin]\n`);
       changes++;
@@ -72,11 +77,14 @@ export function patchModule(name, source, adapterOverride=adapter, options={}) {
       `} catch (error) { console.warn('[AG-ZH] translator unavailable'); }\n`);
     changes++;
   }
+  const healthSender = adapter.hubViews
+    ? 'utils_1.getHubWindows().some(win => utils_1.getHubWebContents(win) === event.sender)'
+    : 'electron_1.BrowserWindow.fromWebContents(event.sender)';
   if (name === 'main') out.append(`
 // Health acknowledgment contains only patch metadata, never page or account content.
 electron_1.ipcMain.on('ag-zh:ready', (event, state) => {
   try {
-    if (!electron_1.BrowserWindow.fromWebContents(event.sender) || event.senderFrame !== event.sender.mainFrame || state?.version !== '1.0.0') return;
+    if (!${healthSender} || event.senderFrame !== event.sender.mainFrame || state?.version !== '1.0.0') return;
     const fs = require('fs'), path = require('path');
     const file = ${options.healthFile ? JSON.stringify(options.healthFile) : "path.join(require('os').homedir(), 'Library/Application Support/Antigravity zh-CN/health.json')"};
     const dir = path.dirname(file);

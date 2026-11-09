@@ -25,7 +25,7 @@ test('WSL 用户命名与原生右键菜单未知标签保持原样，固定命�
 
 test('真实原生右键菜单构建保留命令 ID、回调与快捷键',{skip:!original||!(selectedAdapter.platform==='win32'||selectedAdapter.contextMenu)},()=>{
  const mocks={'electron':{},'electron-updater':{},'./types':{},'./updater':{},'electron-log/main':{},'./customScheme':{},'./tray':{},'./ideInstall/constants':{},'./wsl':{},'./menu':{},'./scriptJail':{},'./utils':{},'./ag-zh-native':native};
- const m=load('ipcHandlers',mocks,'\nexports.testMenu=buildContextMenuTemplate;');let selected;
+ const m=load('ipcHandlers',{...browserIpcMocks,...mocks},'\nexports.testMenu=buildContextMenuTemplate;');let selected;
  const result=m.testMenu([{id:'copy',label:'Copy',accelerator:'Ctrl+C'},{id:'user',label:'Settings'},{id:'group',label:'New Project',type:'submenu',submenu:[{id:'rename',label:'Rename'}]}],id=>selected=id);
  assert.equal(result[0].label,'复制');assert.equal(result[0].accelerator,'Ctrl+C');result[0].click();assert.equal(selected,'copy');
  assert.equal(result[1].label,'Settings');assert.equal(result[2].label,'New Project');assert.equal(result[2].submenu[0].label,'重命名');
@@ -35,9 +35,13 @@ class Menu {
   insert(pos,item){this.items.splice(pos,0,item);}
   getMenuItemById(id){for(const item of this.items){if(item.id===id)return item;const child=item.submenu?.getMenuItemById(id);if(child)return child;}}
 }
+const browserIpcMocks = {
+  './webviewBrowser': {}, './externalUrl': {}, './wcvBrowserRegistry': {},
+  './guestDialogController': {}, './wcvIpcHandlers': {registerWcvIpcHandlers() {}}
+};
 function load(n,mocks,append='') {
   const exports={};
-  const context={exports,require:name=>Object.hasOwn(mocks,name)?mocks[name]:req(name),console,process,setTimeout,clearTimeout,setInterval,clearInterval,__dirname:'/app/dist'};
+  const context={exports,require:name=>Object.hasOwn(mocks,name)?mocks[name]:req(name),console,process,URL,setTimeout,clearTimeout,setInterval,clearInterval,__dirname:'/app/dist'};
   vm.runInNewContext(patchModule(n,source(n),selectedAdapter)+append,context);return exports;
 }
 test('原生菜单翻译后，新建窗口、快捷键和更新动作仍正常',requiresOriginal,async()=>{
@@ -51,7 +55,7 @@ test('原生菜单翻译后，新建窗口、快捷键和更新动作仍正常',
   assert.equal(menu.items[1].label,'文件');assert.equal(file.items[0].label,'新建窗口');
   assert.equal(file.items[0].accelerator,'CmdOrCtrl+Shift+N');file.items[0].click();assert.equal(opened,1);
   const update=menu.getMenuItemById('check-for-updates');assert.equal(update.label,'检查更新');update.click(update);assert.equal(checked,1);
-  const u=load('updater',{'electron':electron,'electron-updater':{},'./types':{UpdateState:{}},'./services/settingsService':{},'./ag-zh-native':native},'\nexports.testUpdateMenuState=updateMenuState;');
+  const u=load('updater',{'electron':electron,'electron-updater':{},'./types':{UpdateState:{}},'./services/settingsService':{},'./utils':{},'./ag-zh-native':native},'\nexports.testUpdateMenuState=updateMenuState;');
   u.testUpdateMenuState('Checking for Updates...');assert.equal(update.label,'正在检查更新…');assert.equal(update.enabled,false);
   u.testUpdateMenuState('Downloading Update...');assert.equal(update.label,'正在下载更新…');assert.equal(update.enabled,false);
   u.testUpdateMenuState('Restart to Update');assert.equal(update.label,'重启以更新');assert.equal(update.enabled,true);update.click(update);assert.equal(restarted,1);
@@ -77,12 +81,44 @@ test('原生文件夹选择框标题汉化，保留路径、选项和取消行�
  const handlers=new Map();let options,canceled=false;
  const electron={ipcMain:{handle:(id,fn)=>handlers.set(id,fn),on(){}},dialog:{showOpenDialog:async o=>{options=o;return {canceled,filePaths:['/tmp/Settings']};}}};
  const mocks={'electron':electron,'electron-updater':{},'./types':{},'./updater':{},'electron-log/main':{},'./customScheme':{},'./tray':{},'./ideInstall/constants':{},'./wsl':{getActiveWslDistro:()=>null},'./menu':{},'./scriptJail':{},'./utils':{},'./ag-zh-native':native};
- const module=load('ipcHandlers',mocks);module.registerIpcHandlers({});
+ const module=load('ipcHandlers',{...browserIpcMocks,...mocks});module.registerIpcHandlers({});
  assert.equal(await handlers.get('dialog:open-workspace')(),'/tmp/Settings');assert.equal(options.title,'打开工作区');
  assert.equal(Array.from(options.properties).join(','),'openDirectory,createDirectory');
  assert.equal(Array.from(await handlers.get('dialog:open-workspaces')()).join(','),'/tmp/Settings');assert.equal(options.title,'打开工作区');
  assert.equal(Array.from(options.properties).join(','),'openDirectory,createDirectory,multiSelections');
  canceled=true;assert.equal(await handlers.get('dialog:open-workspace')(),undefined);assert.equal((await handlers.get('dialog:open-workspaces')()).length,0);
+});
+
+test('2.29 两种主窗口均收到来源参数，静态背景视图保持隔离', {skip:!original || !selectedAdapter.hubViews}, () => {
+  const origin = 'http://127.0.0.1:43210';
+  for (const useViews of [false, true]) {
+    const captured = [];
+    const stop = new Error('window preferences captured');
+    class CaptureView {
+      constructor({webPreferences}) {
+        captured.push(webPreferences);
+        if (webPreferences.preload) throw stop;
+      }
+    }
+    const electron = {
+      app:{getName:()=>'Antigravity', commandLine:{hasSwitch:name=>name===(useViews?'enable-wcv-browser':'disable-wcv-browser')}},
+      BrowserWindow:CaptureView, WebContentsView:CaptureView, BaseWindow:class {}
+    };
+    const utils = load('utils', {
+      electron, './constants':{}, './externalUrl':{}, './keybindings':{}, './loadingOverlay':{},
+      './paths':{getSettingsPbPath:()=>'/unused', getAppStoragePath:()=>'/unused'},
+      fs:{existsSync:()=>false}, './wsl':{getActiveWslDistro:()=>null},
+      './debugConsole':{isDebugConsoleEnabled:()=>false},
+      './windowState':{resolveInitialWindowState:()=>({width:800,height:600})}
+    });
+    assert.throws(()=>utils.createWindow(origin+'/home?project=sample'), error=>error===stop);
+    assert.equal(captured.length, useViews ? 2 : 1);
+    const hub = captured.at(-1);
+    assert.deepEqual(Array.from(hub.additionalArguments), ['--ag-zh-origin='+origin]);
+    assert.equal(hub.contextIsolation, true);
+    assert.equal(hub.nodeIntegration, false);
+    if (useViews) assert.deepEqual({...captured[0]}, {sandbox:true,javascript:false});
+  }
 });
 
 test('2.28 脚本隔离接口仍传递原始请求、发送方和调用帧',{
@@ -95,7 +131,7 @@ test('2.28 脚本隔离接口仍传递原始请求、发送方和调用帧',{
   abortScriptInJail:(...args)=>{calls.push(['abort',...args]);return true;}
  };
  const mocks={'electron':electron,'electron-updater':{},'./types':{},'./updater':{},'electron-log/main':{},'./customScheme':{},'./tray':{},'./ideInstall/constants':{},'./wsl':{},'./menu':{},'./scriptJail':jail,'./utils':{},'./ag-zh-native':native};
- load('ipcHandlers',mocks).registerIpcHandlers({});
+ load('ipcHandlers',{...browserIpcMocks,...mocks}).registerIpcHandlers({});
  const sender={},senderFrame={},request={code:'Settings New Project'},event={sender,senderFrame};
  assert.deepEqual(await handlers.get('script-jail:run')(event,request),{jailId:'test-jail'});
  assert.equal(handlers.get('script-jail:abort')(event,'test-jail'),true);

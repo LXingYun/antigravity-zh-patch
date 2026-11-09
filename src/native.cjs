@@ -19,11 +19,13 @@ function localizeMenu(menu) {
   }
   return menu;
 }
-// Fixed id/label pairs observed in the 2.26.0 frontend. Positional IDs and
+// Fixed id/label pairs observed in the supported frontends. Positional IDs and
 // dynamic project/group/distribution names deliberately stay untouched.
 const contextLabels={copy:'Copy',cut:'Cut',paste:'Paste','select-all':'Select All',
   'copy-selection':'Copy','copy-link':'Copy Link','add-folder':'Open Folder',
   'group-new':'New Group','group-remove':'Remove from Group','move-to-group':'Move to Group',
+  'open-in-preview':'Open in Side Panel','open-in-builtin-browser':'Open in Built-in Browser',
+  'open-in-external-browser':'Open in External Browser',
   rename:'Rename',split:'Split',share:'Share',stop:'Stop',archive:'Archive',delete:'Delete'};
 function translateContextItem(item) {
   const label=item.label??'';

@@ -18,6 +18,10 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     '[data-testid="pending-user-messages"]', '[data-testid="queued-messages-card"]',
     '[data-testid="side-question-answer"]', '[data-testid="side-question-question"]',
     '[data-testid="sidecar-logs-content"]', '[data-testid="setup-script-output"]',
+    '[data-testid="builtin-browser-download-dir-value"]',
+    '[data-testid="location-selector-trigger"]', '[data-testid="location-local"]',
+    '[data-testid="location-cloud"]', '[data-testid="voice-settings-name"]',
+    '[data-testid="voice-settings-mic"]',
     '[data-testid="permission-target-editor"]', '[data-testid="declared-permissions-arg"]',
     '[data-testid="entity-pill"]', '[data-testid="input-attachment"]',
     '[data-testid="project-customizations-content"]', '[data-testid="workspace-customizations-view"]', '[data-testid="customization-card"]', '[data-testid="sidecar-row"]',
@@ -54,6 +58,11 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     if (typeof text !== 'string') return text;
     const key = text.trim();
     let value = Object.hasOwn(dictionary, key) ? dictionary[key] : undefined;
+    if (el?.matches('[data-testid="home-greeting"] > h1')) {
+      if (key === 'What can we get done today?') value = '今天想做点什么？';
+      const greeting = key.match(/^Hi (\S+), what can we get done today\?$/);
+      if (greeting) value = `你好，${greeting[1]}，今天想做点什么？`;
+    }
     // Settings tabs can change before (or without) the URL. Use the rendered heading.
     if (key === 'Plan' && el?.closest('.settings-modal-container') &&
         [...el.closest('.settings-modal-container').querySelectorAll('h2')].some(h =>
@@ -100,14 +109,16 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
   // These wrappers mix app chrome with user-owned names. They remain blocked by
   // default; only the exact badges, headings and attributes below may be translated.
   const mixedIds = new Set(['model-selector-trigger','project-selector-trigger',
-    'project-customizations-content','workspace-customizations-view','customization-card','sidecar-row']);
+    'project-customizations-content','workspace-customizations-view','customization-card','sidecar-row',
+    'location-selector-trigger','location-local','location-cloud','voice-settings-name','voice-settings-mic']);
   const chromeAttributes = new Set(['Display Options','More Actions','Go Back','Go Forward',
     'Toggle Sidebar','Toggle sidebar','Toggle Sidebar, conversations need attention',
     'Search Conversations','Sort and filter conversations','Typeahead menu','Sidebar','Notifications','Copy path','Copy Path',
     'Copy Config File Path','Copied','Path copied!','Clear search',
     'Customizations views','Customizations source','Create plugin','Dismiss error',
     'Actions','Add automation','Select model','Context window','Search customizations...',
-    'Search MCP servers by name']);
+    'Search MCP servers by name','Previous card','Next card','Announcements and tips',
+    'Toggle Side Panel','Toggle Terminal Panel','Start Voice mode','End Voice mode','Voice volume','Voice speed']);
   const historyText = new Set(['This page is going away soon','Search conversations with',
     'in the top left.','View archived in the sidebar','menu)']);
   const emptyConversations = new Set(['No conversations yet','No conversations found',
@@ -120,6 +131,13 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
   function extraTextAllowed(node, el) {
     const old = originals.get(node);
     const key = (old && node.nodeValue === old.translated ? old.source : node.nodeValue).trim();
+    if (key === 'Not set' && el.matches('[data-testid="voice-settings-name"]')) return true;
+    if (key === 'System default' && el.closest('[data-testid="voice-settings-mic"]')) return true;
+    if (key === 'This Computer' && el.matches('span.truncate') &&
+        el.closest('[data-testid="location-local"],[data-testid="location-selector-trigger"]')) return true;
+    if (key === 'Remote' && el.closest('[data-testid="location-selector-trigger"]')) return true;
+    if (['Remote','Runs in a cloud environment','Clones this repo in a cloud environment'].includes(key) &&
+        el.closest('[data-testid="location-cloud"][data-env-id="default"]')) return true;
     if (win.location.pathname === '/history' && historyText.has(key) && el.tagName === 'SPAN') return true;
     if (win.location.pathname === '/history' && ['(','.'].includes(key) && el.closest('.rounded-lg.border.bg-card')) return true;
     if (emptyConversations.has(key) && el.matches('.select-none.text-muted-foreground,span.select-none.opacity-30')) return true;
@@ -140,6 +158,12 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     if (!['aria-label','title','placeholder'].includes(attr)) return source;
     const id = el.getAttribute('data-testid');
     if (attr === 'aria-label') {
+      const locationPrefix = 'Where the agent runs, current: ';
+      if (id === 'location-selector-trigger' && source.startsWith(locationPrefix)) {
+        const location = source.slice(locationPrefix.length);
+        const name = ['This Computer','Remote'].includes(location) ? dictionary[location] : location;
+        return '智能体运行位置，当前：' + name;
+      }
       if (el.tagName === 'BUTTON' && win.location.pathname.startsWith('/customizations') && source.startsWith('More actions for ')) return source.slice(17) + ' 的更多操作';
       if (id === 'model-selector-trigger' && source.startsWith('Select model, current: ')) return '选择模型，当前：' + source.slice(23);
       if (id === 'project-selector-trigger' && source.startsWith('Select project, current: ')) {
@@ -161,14 +185,15 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     if (scopeCache.has(el)) return scopeCache.get(el);
     const parent = scope(el.parentElement);
     const id = el.getAttribute('data-testid') || '';
+    const customEnvironment = id.startsWith('location-cloud-') && el.hasAttribute('data-env-id');
     const staticNoProject = id === 'project-selector-trigger' && !el.querySelector('[data-project-icon]') && ['Select project, current: No Project','选择项目，当前：无项目'].includes(el.getAttribute('aria-label'));
-    const ownBlock = deniedTags.has(el.tagName) || (deniedIds.has(id) && !staticNoProject) ||
+    const ownBlock = customEnvironment || deniedTags.has(el.tagName) || (deniedIds.has(id) && !staticNoProject) ||
       ['data-cascade-id','data-project-name','data-project-label','data-model-base','data-model-label','data-ag-zh-protect'].some(a=>el.hasAttribute(a)) ||
       (el.hasAttribute('contenteditable') && el.getAttribute('contenteditable') !== 'false') ||
       el.classList.contains('monaco-editor') || el.classList.contains('xterm') ||
       (id.startsWith('settings-nav-item-') && !settingsNav.has(id.slice(18)));
     const result = { blocked: parent.blocked || ownBlock,
-      hardBlocked: parent.hardBlocked || deniedTags.has(el.tagName) ||
+      hardBlocked: parent.hardBlocked || customEnvironment || deniedTags.has(el.tagName) ||
         (deniedIds.has(id) && !mixedIds.has(id)) ||
         ['data-cascade-id','data-project-name','data-project-label','data-model-base','data-ag-zh-protect'].some(a=>el.hasAttribute(a)) ||
         (el.hasAttribute('data-model-label') && id !== 'model-selector-item') ||

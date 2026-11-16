@@ -58,6 +58,17 @@ export function patchModule(name, source, adapterOverride=adapter, options={}) {
       if (adapter.hubViews && !(n.value.type === 'ObjectExpression' && n.value.properties.some(
         p => p.key?.name === 'preload' && raw(p.value) === "path_1.default.join(__dirname, 'preload.js')"
       ))) return;
+      if (adapter.hubWindowArguments) {
+        // 2.32 passes backend flags through this spread. Only local Hub windows
+        // receive the translator argument; preserve the official remote branch.
+        const spread = n.value.properties.find(p => p.type === 'SpreadElement' &&
+          raw(p.argument) === 'additionalArguments.length > 0 ? { additionalArguments } : {}');
+        if (!spread) throw Error('主窗口启动参数结构不匹配');
+        replace(spread.argument, `options?.partition || additionalArguments.includes('--agy-backend=ssh')
+          ? (${raw(spread.argument)})
+          : { additionalArguments: [...additionalArguments, '--ag-zh-origin=' + new URL(url).origin] }`);
+        return;
+      }
       if(n.value.properties.some(p=>p.key?.name==='additionalArguments')) throw Error('新增启动参数结构冲突');
       if(code.slice(n.value.properties.at(-1).end,n.value.end-1).trim() !== ',') throw Error('窗口属性分隔符不匹配');
       out.appendLeft(n.value.end-1, `additionalArguments: ['--ag-zh-origin=' + new URL(url).origin]\n`);
@@ -77,7 +88,7 @@ export function patchModule(name, source, adapterOverride=adapter, options={}) {
       `} catch (error) { console.warn('[AG-ZH] translator unavailable'); }\n`);
     changes++;
   }
-  const healthSender = adapter.hubViews
+  const healthSender = adapter.hubWindowArguments ? 'utils_1.isLocalHubTopFrame(event)' : adapter.hubViews
     ? 'utils_1.getHubWindows().some(win => utils_1.getHubWebContents(win) === event.sender)'
     : 'electron_1.BrowserWindow.fromWebContents(event.sender)';
   if (name === 'main') out.append(`

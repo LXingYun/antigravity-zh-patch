@@ -36,7 +36,11 @@ class Menu {
   getMenuItemById(id){for(const item of this.items){if(item.id===id)return item;const child=item.submenu?.getMenuItemById(id);if(child)return child;}}
 }
 const browserIpcMocks = {
-  './webviewBrowser': {}, './externalUrl': {}, './wcvBrowserRegistry': {},
+  './paths': {}, './debugConsole': {}, './deviceChooser': {deviceChooserController:{setHostResolver() {}}}, './guestFileChooserController': {},
+  './guestPromptController': {}, './webviewPromptPreload': {}, './isolatedWorldExec': {},
+  './guestFrameBridge': {}, './guestNetworkController': {}, './guestWebMcpController': {},
+  './remote/windowBackends': {}, './remote/remoteWindowSecurity': {isRemoteContents: () => false},
+  './hubZoom': {setHubZoomStorageManager() {}}, './webviewBrowser': {}, './externalUrl': {}, './wcvBrowserRegistry': {},
   './guestDialogController': {}, './wcvIpcHandlers': {registerWcvIpcHandlers() {}}
 };
 function load(n,mocks,append='') {
@@ -46,14 +50,31 @@ function load(n,mocks,append='') {
 }
 test('原生菜单翻译后，新建窗口、快捷键和更新动作仍正常',requiresOriginal,async()=>{
   const file=new Menu(),appSub=new Menu(),help=new Menu();
-  const menu=new Menu([{label:'Antigravity',submenu:appSub},{label:'File',submenu:file},{label:'Help',submenu:help}]);
+  const view=new Menu([{role:'resetZoom',label:'Actual Size'},{role:'zoomIn',label:'Zoom In'},{role:'zoomOut',label:'Zoom Out'}]);
+  const zoomActions=[];
+  const hubZoom={resolveTargetHubWindow:w=>w,applyHubWindowZoom:async(w,action)=>zoomActions.push([w,action])};
+  const menu=new Menu([{label:'Antigravity',submenu:appSub},{label:'File',submenu:file},{label:'Help',submenu:help},{label:'View',submenu:view}]);
   let opened=0,checked=0,restarted=0;
   const updater={MenuUpdateStep:{CheckForUpdates:'Check for Updates'},updateActions:{'Check for Updates':()=>checked++,'Restart to Update':()=>restarted++}};
   const electron={Menu:{getApplicationMenu:()=>menu,setApplicationMenu:()=>{}},MenuItem:class {constructor(options){Object.assign(this,options);}},shell:{openExternal:()=>{}}};
-  const module=load('menu',{'electron':electron,'./utils':{isMacOS:()=>true,createWindow:()=>opened++},'./updater':updater,'./wsl':{isWslAvailable:()=>false},'./debugConsole':{configureDebugConsoleMenu(){}},'./ag-zh-native':native});
+  const module=load('menu',{'./hubZoom':hubZoom,'electron':electron,'./utils':{isMacOS:()=>true,createWindow:()=>opened++},'./updater':updater,'./wsl':{isWslAvailable:()=>false},'./debugConsole':{configureDebugConsoleMenu(){}},'./ag-zh-native':native});
   module.setupApplicationMenu('https://127.0.0.1:1');
   assert.equal(menu.items[1].label,'文件');assert.equal(file.items[0].label,'新建窗口');
   assert.equal(file.items[0].accelerator,'CmdOrCtrl+Shift+N');file.items[0].click();assert.equal(opened,1);
+  if (selectedAdapter.hubWindowArguments) {
+    const target={};
+    for (const [id,label,accelerator,action] of [
+      ['hub-reset-zoom','实际大小','CmdOrCtrl+0','reset'], ['hub-zoom-in','放大','CmdOrCtrl+Plus','in'],
+      ['hub-zoom-in-equal','放大','CmdOrCtrl+=','in'], ['hub-zoom-out','缩小','CmdOrCtrl+-','out']
+    ]) {
+      const item=menu.getMenuItemById(id);
+      assert.equal(item.label,label);
+      assert.equal(item.accelerator,accelerator);
+      item.click(item,target);
+      assert.deepEqual(zoomActions.at(-1),[target,action]);
+    }
+    assert.equal(menu.getMenuItemById('hub-zoom-in-equal').visible,false);
+  }
   const update=menu.getMenuItemById('check-for-updates');assert.equal(update.label,'检查更新');update.click(update);assert.equal(checked,1);
   const u=load('updater',{'electron':electron,'electron-updater':{},'./types':{UpdateState:{}},'./services/settingsService':{},'./utils':{},'./ag-zh-native':native},'\nexports.testUpdateMenuState=updateMenuState;');
   u.testUpdateMenuState('Checking for Updates...');assert.equal(update.label,'正在检查更新…');assert.equal(update.enabled,false);
@@ -89,9 +110,17 @@ test('原生文件夹选择框标题汉化，保留路径、选项和取消行�
  canceled=true;assert.equal(await handlers.get('dialog:open-workspace')(),undefined);assert.equal((await handlers.get('dialog:open-workspaces')()).length,0);
 });
 
-test('2.29 两种主窗口均收到来源参数，静态背景视图保持隔离', {skip:!original || !selectedAdapter.hubViews}, () => {
+test('本地主窗口保留启动参数，SSH 会话和背景视图保持隔离', {skip:!original || !selectedAdapter.hubViews}, () => {
   const origin = 'http://127.0.0.1:43210';
-  for (const useViews of [false, true]) {
+  const scenarios = [{builtInBrowser:false}, {builtInBrowser:true}];
+  if (selectedAdapter.hubWindowArguments) scenarios.push(
+    {builtInBrowser:true, additionalArguments:['--example-local']},
+    {builtInBrowser:false, partition:'persist:example-ssh', additionalArguments:['--agy-backend=ssh']},
+    {builtInBrowser:false, additionalArguments:['--agy-backend=ssh']},
+    {builtInBrowser:false, partition:'persist:example'}
+  );
+  for (const options of scenarios) {
+    const useViews = options.builtInBrowser;
     const captured = [];
     const stop = new Error('window preferences captured');
     class CaptureView {
@@ -105,16 +134,19 @@ test('2.29 两种主窗口均收到来源参数，静态背景视图保持隔离
       BrowserWindow:CaptureView, WebContentsView:CaptureView, BaseWindow:class {}
     };
     const utils = load('utils', {
-      electron, './constants':{}, './externalUrl':{}, './keybindings':{}, './loadingOverlay':{},
+      electron, './remote/windowBackends':{}, './nodeWrapper':{}, './constants':{}, './externalUrl':{}, './keybindings':{}, './loadingOverlay':{},
       './paths':{getSettingsPbPath:()=>'/unused', getAppStoragePath:()=>'/unused'},
       fs:{existsSync:()=>false}, './wsl':{getActiveWslDistro:()=>null},
       './debugConsole':{isDebugConsoleEnabled:()=>false},
       './windowState':{resolveInitialWindowState:()=>({width:800,height:600})}
     });
-    assert.throws(()=>utils.createWindow(origin+'/home?project=sample'), error=>error===stop);
+    assert.throws(()=>utils.createWindow(origin+'/home?project=sample',undefined,options), error=>error===stop);
     assert.equal(captured.length, useViews ? 2 : 1);
     const hub = captured.at(-1);
-    assert.deepEqual(Array.from(hub.additionalArguments), ['--ag-zh-origin='+origin]);
+    const args = options.additionalArguments || [];
+    const remote = options.partition || args.includes('--agy-backend=ssh');
+    assert.deepEqual(Array.from(hub.additionalArguments || []), remote ? args : [...args,'--ag-zh-origin='+origin]);
+    assert.equal(hub.partition, options.partition);
     assert.equal(hub.contextIsolation, true);
     assert.equal(hub.nodeIntegration, false);
     if (useViews) assert.deepEqual({...captured[0]}, {sandbox:true,javascript:false});

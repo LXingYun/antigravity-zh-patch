@@ -242,3 +242,44 @@ test('搜索弹窗、MCP 输入和技能操作保留搜索词与名称',async()=
   assert.equal(f.doc.querySelector('.text-blue-400').textContent,'全局');assert.equal(f.doc.querySelector('.text-green-400').textContent,'Global');
  }finally{f.close();}
 });
+
+test('2.32 轮换问候只翻译首页标题，保留姓名及对话内容', async () => {
+  const f = await fixture('<div data-testid="home-greeting"><h1></h1></div><div data-testid="planner-response-text"><h1></h1></div>');
+  try {
+    const [home, message] = f.doc.querySelectorAll('h1');
+    for (const [source, expected] of [
+      ['Hey New, what should we build today?', '你好，New，今天想做点什么？'],
+      ['Hey there, what should we build today?', '你好，今天想做点什么？'],
+      ['Welcome back, Settings. Where should we pick up?', '欢迎回来，Settings。想从哪里继续？'],
+      ['Welcome back. Where should we pick up?', '欢迎回来。想从哪里继续？'],
+      ["Good to see you, 小林. What's next?", '很高兴见到你，小林。接下来想做什么？'],
+      ["Good to see you. What's next?", '很高兴见到你。接下来想做什么？']
+    ]) {
+      home.textContent = message.textContent = source;
+      await delay(60);
+      assert.equal(home.textContent, expected);
+      assert.equal(message.textContent, source);
+    }
+  } finally { f.close(); }
+});
+
+test('2.32 SSH 弹窗翻译操作，保留主机、配置路径、输入和错误详情', async () => {
+  const f = await fixture(`<div data-testid="ssh-connect-dialog">
+    <input data-testid="ssh-connect-host-input" value="Settings" aria-label="SSH host" placeholder="user@host:port">
+    <button data-testid="ssh-connect-button">Connecting…</button><button data-testid="ssh-config-file-choose">Choose File…</button>
+    <button data-testid="ssh-connect-hidden-hosts-toggle">2 hidden hosts</button>
+    <div data-testid="ssh-connect-host-option">Settings</div><span data-testid="ssh-config-file-name">Interface Layout</span>
+    <div data-testid="ssh-connect-error">New Project</div><p>No hosts in /example/SSH Config yet. Type one above.</p>
+    </div><div role="menu"><button data-testid="ssh-host-project-item">SSH Config</button></div>`);
+  try {
+    const input = f.doc.querySelector('input');
+    assert.equal(input.getAttribute('aria-label'), 'SSH 主机');
+    assert.equal(input.placeholder, 'user@host:port');
+    assert.equal(input.value, 'Settings');
+    assert.deepEqual([...f.doc.querySelectorAll('button')].map(b => b.textContent),
+      ['正在连接…','选择文件…','已隐藏 2 个主机','SSH Config']);
+    for (const [id, expected] of [['ssh-connect-host-option','Settings'],['ssh-config-file-name','Interface Layout'],['ssh-connect-error','New Project']])
+      assert.equal(f.doc.querySelector(`[data-testid="${id}"]`).textContent, expected);
+    assert.equal(f.doc.querySelector('p').textContent,'/example/SSH Config 中暂无主机。可在上方输入主机地址。');
+  } finally { f.close(); }
+});

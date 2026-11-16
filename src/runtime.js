@@ -15,7 +15,13 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     '[data-testid="artifact-view"]', '[data-testid="terminal-surface"]',
     '[data-testid="doc-row-modal"]', '[data-testid="sidecar-iframe-slot"]',
     '[data-testid="new-sidecar-model"]', '[data-testid="sidecar-model-option"]',
-    '[data-testid="pending-user-messages"]', '[data-testid="queued-messages-card"]',
+    '[data-testid="ssh-connect-host-option"]', '[data-testid="ssh-host-project-item"]',
+    '[data-testid="ssh-config-file-name"]', '[data-testid="ssh-connect-progress"]',
+    '[data-testid="ssh-connect-error"]', '[data-testid="ssh-host-label"]',
+    '[data-testid="ssh-machine-switcher-wsl-distro"]', '[data-testid="project-selector-github-repo-item"]',
+    '[data-testid="side-question-followup-user"]', '[data-testid="side-question-tab-header-name"]',
+    '[data-testid="coordinator-worker-card"]', '[data-testid="coordinator-card-latest-line"]',
+    '[data-testid="coordinator-welcome"]', '[data-testid="pending-user-messages"]', '[data-testid="queued-messages-card"]',
     '[data-testid="side-question-answer"]', '[data-testid="side-question-question"]',
     '[data-testid="sidecar-logs-content"]', '[data-testid="setup-script-output"]',
     '[data-testid="builtin-browser-download-dir-value"]',
@@ -44,6 +50,9 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     'sort-folders-submenu-trigger', 'new-sidecar-modal', 'new-sidecar-submit',
     'model-selector-context-window-badge', 'model-selector-context-window-tooltip',
     'model-selector-context-window-submenu', 'model-selector-loading',
+    'ssh-connect-dialog', 'project-selector-connect-ssh-host', 'project-location-toggle',
+    'new-coordinator-button', 'coordinator-section-header', 'create-coordinator-submit',
+    'side-question-tab-header-prefix', 'side-question-tab-empty',
     'empty-file-open-button', 'open-editor-empty', 'terminal-empty', 'add-mcp-screen'
   ];
   const attributes = ['title', 'aria-label', 'placeholder', 'data-placeholder'];
@@ -61,7 +70,23 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     if (el?.matches('[data-testid="home-greeting"] > h1')) {
       if (key === 'What can we get done today?') value = '今天想做点什么？';
       const greeting = key.match(/^Hi (\S+), what can we get done today\?$/);
+      const build = key.match(/^Hey (\S+), what should we build today\?$/);
+      const resume = key.match(/^Welcome back, (\S+)\. Where should we pick up\?$/);
+      const next = key.match(/^Good to see you, (\S+)\. What's next\?$/);
+      if (build) value = build[1] === 'there' ? '你好，今天想做点什么？' : `你好，${build[1]}，今天想做点什么？`;
+      if (resume) value = `欢迎回来，${resume[1]}。想从哪里继续？`;
+      if (next) value = `很高兴见到你，${next[1]}。接下来想做什么？`;
+      if (key === 'Welcome back. Where should we pick up?') value = '欢迎回来。想从哪里继续？';
+      if (key === "Good to see you. What's next?") value = '很高兴见到你。接下来想做什么？';
       if (greeting) value = `你好，${greeting[1]}，今天想做点什么？`;
+    }
+    if (el?.closest('[data-testid="ssh-connect-hidden-hosts-toggle"]')) {
+      const hidden = key.match(/^(\d+) hidden hosts?$/);
+      if (hidden) value = `已隐藏 ${hidden[1]} 个主机`;
+    }
+    if (el?.matches('[data-testid="ssh-connect-dialog"] p')) {
+      const empty = key.match(/^No hosts in (.+) yet\. Type one above\.$/);
+      if (empty) value = `${empty[1]} 中暂无主机。可在上方输入主机地址。`;
     }
     // Settings tabs can change before (or without) the URL. Use the rendered heading.
     if (key === 'Plan' && el?.closest('.settings-modal-container') &&
@@ -105,20 +130,20 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
   const deniedIds = new Set([...deny.matchAll(/\[data-testid="([^"]+)"\]/g)].map(m=>m[1]));
   const uiIdSet = new Set(uiIds);
   const roles = new Set(['dialog','alertdialog','menu','menuitem','menuitemradio','option','tooltip','alert']);
-  const settingsNav = new Set(['General','App','Application','Appearance','Notifications','Models','Conversations','Shortcuts','Provide Feedback','Give Feedback','Projects','Workspaces']);
+  const settingsNav = new Set(['General','App','Application','Browser','Appearance','Notifications','Models','Conversations','Shortcuts','Provide Feedback','Give Feedback','Projects','Workspaces']);
   // These wrappers mix app chrome with user-owned names. They remain blocked by
   // default; only the exact badges, headings and attributes below may be translated.
   const mixedIds = new Set(['model-selector-trigger','project-selector-trigger',
     'project-customizations-content','workspace-customizations-view','customization-card','sidecar-row',
     'location-selector-trigger','location-local','location-cloud','voice-settings-name','voice-settings-mic']);
-  const chromeAttributes = new Set(['Display Options','More Actions','Go Back','Go Forward',
+  const chromeAttributes = new Set(['Display Options','More Actions','More actions','Go Back','Go Forward',
     'Toggle Sidebar','Toggle sidebar','Toggle Sidebar, conversations need attention',
     'Search Conversations','Sort and filter conversations','Typeahead menu','Sidebar','Notifications','Copy path','Copy Path',
     'Copy Config File Path','Copied','Path copied!','Clear search',
     'Customizations views','Customizations source','Create plugin','Dismiss error',
     'Actions','Add automation','Select model','Context window','Search customizations...',
     'Search MCP servers by name','Previous card','Next card','Announcements and tips',
-    'Toggle Side Panel','Toggle Terminal Panel','Start Voice mode','End Voice mode','Voice volume','Voice speed']);
+    'Toggle Side Panel','Toggle Terminal Panel','Start Voice mode','End Voice mode','Record voice memo','Stop recording','Hidden hosts','Choose icon and color','Voice volume','Voice speed']);
   const historyText = new Set(['This page is going away soon','Search conversations with',
     'in the top left.','View archived in the sidebar','menu)']);
   const emptyConversations = new Set(['No conversations yet','No conversations found',
@@ -175,7 +200,9 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
       }
     }
     if (chromeAttributes.has(source) ||
-        (el.matches('input,textarea') && (['customizations-search','new-sidecar-name','new-sidecar-prompt','fastpick-input'].includes(id) || el.closest('[data-testid="sidecars-view"],[data-testid="new-sidecar-modal"],[data-testid="add-mcp-screen"]'))) ||
+        (el.matches('input,textarea') && (['customizations-search','new-sidecar-name','new-sidecar-prompt','fastpick-input',
+           'project-selector-this-machine-search','project-selector-cloud-search','project-selector-ssh-host-search',
+           'ssh-connect-host-input','coordinator-name-input','coordinator-goal-input','coordinator-settings-name'].includes(id) || el.closest('[data-testid="sidecars-view"],[data-testid="new-sidecar-modal"],[data-testid="add-mcp-screen"]'))) ||
         (el.matches('span[aria-label].rounded-full.font-normal') && ['Built In','Global','Workspace'].includes(source))) return translate(source,el);
     return source;
   }

@@ -15,6 +15,7 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     '[data-testid="artifact-view"]', '[data-testid="terminal-surface"]',
     '[data-testid="doc-row-modal"]', '[data-testid="sidecar-iframe-slot"]',
     '[data-testid="new-sidecar-model"]', '[data-testid="sidecar-model-option"]',
+    '[data-testid="browser-site-data-site"]', '[data-testid="branch-pill-trigger"]',
     '[data-testid="ssh-connect-host-option"]', '[data-testid="ssh-host-project-item"]',
     '[data-testid="ssh-config-file-name"]', '[data-testid="ssh-connect-progress"]',
     '[data-testid="ssh-connect-error"]', '[data-testid="ssh-host-label"]',
@@ -50,7 +51,7 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     'sort-folders-submenu-trigger', 'new-sidecar-modal', 'new-sidecar-submit',
     'model-selector-context-window-badge', 'model-selector-context-window-tooltip',
     'model-selector-context-window-submenu', 'model-selector-loading',
-    'ssh-connect-dialog', 'project-selector-connect-ssh-host', 'project-location-toggle',
+    'browser-site-data-dialog', 'ssh-connect-dialog', 'project-selector-connect-ssh-host', 'project-location-toggle',
     'new-coordinator-button', 'coordinator-section-header', 'create-coordinator-submit',
     'side-question-tab-header-prefix', 'side-question-tab-empty',
     'empty-file-open-button', 'open-editor-empty', 'terminal-empty', 'add-mcp-screen'
@@ -79,6 +80,18 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
       if (key === 'Welcome back. Where should we pick up?') value = '欢迎回来。想从哪里继续？';
       if (key === "Good to see you. What's next?") value = '很高兴见到你。接下来想做什么？';
       if (greeting) value = `你好，${greeting[1]}，今天想做点什么？`;
+    }
+    if (el?.matches('[data-testid="browser-site-data-site"] span.text-muted-foreground')) {
+      const count = key.match(/^(\d+) cookies?$/);
+      if (count) value = `${count[1]} 个 Cookie`;
+    }
+    if (el?.matches('[data-testid="browser-site-data-no-match"]')) {
+      const search = key.match(/^No sites match “(.*)”\.$/);
+      if (search) value = `没有与“${search[1]}”匹配的站点。`;
+    }
+    if (el?.matches('[data-testid="browser-site-data-delete-error"]')) {
+      const failed = key.match(/^Couldn't delete cookies for (.+)\. Try again\.$/);
+      if (failed) value = `无法删除 ${failed[1]} 的 Cookie，请重试。`;
     }
     if (el?.closest('[data-testid="ssh-connect-hidden-hosts-toggle"]')) {
       const hidden = key.match(/^(\d+) hidden hosts?$/);
@@ -133,7 +146,7 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
   const settingsNav = new Set(['General','App','Application','Browser','Appearance','Notifications','Models','Conversations','Shortcuts','Provide Feedback','Give Feedback','Projects','Workspaces']);
   // These wrappers mix app chrome with user-owned names. They remain blocked by
   // default; only the exact badges, headings and attributes below may be translated.
-  const mixedIds = new Set(['model-selector-trigger','project-selector-trigger',
+  const mixedIds = new Set(['browser-site-data-site','model-selector-trigger','project-selector-trigger',
     'project-customizations-content','workspace-customizations-view','customization-card','sidecar-row',
     'location-selector-trigger','location-local','location-cloud','voice-settings-name','voice-settings-mic']);
   const chromeAttributes = new Set(['Display Options','More Actions','More actions','Go Back','Go Forward',
@@ -156,6 +169,9 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
   function extraTextAllowed(node, el) {
     const old = originals.get(node);
     const key = (old && node.nodeValue === old.translated ? old.source : node.nodeValue).trim();
+    if (/^\d+ cookies?$/.test(key) && el.matches('[data-testid="browser-site-data-site"] span.text-muted-foreground')) return true;
+    if ((key === 'Installed separately' && el.matches('[data-testid="bundle-installed-separately"]')) ||
+        (key === 'No longer available' && el.matches('[data-testid="bundle-unavailable-note"]'))) return true;
     if (key === 'Not set' && el.matches('[data-testid="voice-settings-name"]')) return true;
     if (key === 'System default' && el.closest('[data-testid="voice-settings-mic"]')) return true;
     if (key === 'This Computer' && el.matches('span.truncate') &&
@@ -183,6 +199,20 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     if (!['aria-label','title','placeholder'].includes(attr)) return source;
     const id = el.getAttribute('data-testid');
     if (attr === 'aria-label') {
+      if (el.closest('[data-testid^="shortcut-row-"]')) {
+        const add = source.match(/^Add shortcut for (.+)$/);
+        const binding = source.match(/^(Shortcut|Remove shortcut) (.+?) for (.+)$/);
+        if (add || binding) {
+          const command = add ? add[1] : binding[3];
+          const label = Object.hasOwn(dictionary, command) ? dictionary[command] : command;
+          if (add) return `为“${label}”添加快捷键`;
+          if (binding[1] === 'Shortcut') return `“${label}”的快捷键：${binding[2]}`;
+          return `移除“${label}”的快捷键 ${binding[2]}`;
+        }
+      }
+      if (id === 'browser-site-data-delete' && source.startsWith('Delete cookies for ')) {
+        return '删除 ' + source.slice('Delete cookies for '.length) + ' 的 Cookie';
+      }
       const locationPrefix = 'Where the agent runs, current: ';
       if (id === 'location-selector-trigger' && source.startsWith(locationPrefix)) {
         const location = source.slice(locationPrefix.length);
@@ -202,7 +232,7 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     if (chromeAttributes.has(source) ||
         (el.matches('input,textarea') && (['customizations-search','new-sidecar-name','new-sidecar-prompt','fastpick-input',
            'project-selector-this-machine-search','project-selector-cloud-search','project-selector-ssh-host-search',
-           'ssh-connect-host-input','coordinator-name-input','coordinator-goal-input','coordinator-settings-name'].includes(id) || el.closest('[data-testid="sidecars-view"],[data-testid="new-sidecar-modal"],[data-testid="add-mcp-screen"]'))) ||
+           'ssh-connect-host-input','coordinator-name-input','coordinator-goal-input','coordinator-settings-name'].includes(id) || el.closest('[data-testid="sidecars-view"],[data-testid="new-sidecar-modal"],[data-testid="add-mcp-screen"],[data-testid="browser-site-data-dialog"]'))) ||
         (el.matches('span[aria-label].rounded-full.font-normal') && ['Built In','Global','Workspace'].includes(source))) return translate(source,el);
     return source;
   }

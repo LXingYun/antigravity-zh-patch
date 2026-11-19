@@ -283,3 +283,38 @@ test('2.32 SSH 弹窗翻译操作，保留主机、配置路径、输入和错�
     assert.equal(f.doc.querySelector('p').textContent,'/example/SSH Config 中暂无主机。可在上方输入主机地址。');
   } finally { f.close(); }
 });
+
+test('2.33 站点 Cookie 弹窗保留站点名和搜索内容，翻译操作提示', async () => {
+  const f = await fixture(`<div data-testid="browser-site-data-dialog">
+    <input aria-label="Search sites" placeholder="Search sites..." value="Settings">
+    <ul aria-label="Sites with cookies"><li data-testid="browser-site-data-site" data-site="Settings">
+    <div><span class="truncate">Settings</span><span class="text-muted-foreground">2 cookies</span></div>
+    <button data-testid="browser-site-data-delete" aria-label="Delete cookies for Settings"></button>
+    </li></ul><p data-testid="browser-site-data-no-match"></p></div>`);
+  try {
+    const doc = f.doc, input = doc.querySelector('input'), row = doc.querySelector('li');
+    assert.equal(row.dataset.site, 'Settings');
+    assert.equal(row.querySelector('.truncate').textContent, 'Settings');
+    assert.equal(row.querySelector('.text-muted-foreground').textContent, '2 个 Cookie');
+    assert.equal(row.querySelector('button').getAttribute('aria-label'), '删除 Settings 的 Cookie');
+    assert.equal(doc.querySelector('ul').getAttribute('aria-label'), '存有 Cookie 的站点');
+    assert.equal(input.value, 'Settings');
+    assert.equal(input.placeholder, '搜索站点…');
+    const empty = doc.querySelector('p');
+    empty.append('No sites match “','New Project','”.');
+    await delay(100);
+    assert.equal(empty.textContent,'没有与“New Project”匹配的站点。');
+  } finally { f.close(); }
+});
+
+test('快捷键读屏提示保留组合键，仅在快捷键行内翻译命令', async () => {
+  const f = await fixture(`<div data-testid="shortcut-row-openCommandPalette">
+    <button aria-label="Shortcut ⇧⌘P for Open Command Palette"></button>
+    <button aria-label="Remove shortcut ⇧⌘P for Open Command Palette"></button>
+    <button aria-label="Add shortcut for Example Command"></button></div>
+    <div data-testid="planner-response-text"><button aria-label="Add shortcut for Example Command"></button></div>`);
+  try {
+    assert.deepEqual([...f.doc.querySelectorAll('button')].map(b => b.getAttribute('aria-label')),
+      ['“打开命令面板”的快捷键：⇧⌘P','移除“打开命令面板”的快捷键 ⇧⌘P','为“Example Command”添加快捷键','Add shortcut for Example Command']);
+  } finally { f.close(); }
+});

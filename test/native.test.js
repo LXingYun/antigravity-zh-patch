@@ -119,7 +119,8 @@ test('本地主窗口保留启动参数，SSH 会话和背景视图保持隔离'
     {builtInBrowser:false, additionalArguments:['--agy-backend=ssh']},
     {builtInBrowser:false, partition:'persist:example'}
   );
-  for (const options of scenarios) {
+  if (selectedAdapter.version === '2.33.0') scenarios.push({builtInBrowser:true,threeLayer:true,additionalArguments:['--example-local']});
+  for (const {threeLayer, ...options} of scenarios) {
     const useViews = options.builtInBrowser;
     const captured = [];
     const stop = new Error('window preferences captured');
@@ -131,25 +132,29 @@ test('本地主窗口保留启动参数，SSH 会话和背景视图保持隔离'
     }
     const electron = {
       app:{getName:()=>'Antigravity', commandLine:{hasSwitch:name=>name===(useViews?'enable-wcv-browser':'disable-wcv-browser')}},
-      BrowserWindow:CaptureView, WebContentsView:CaptureView, BaseWindow:class {}
+      BrowserWindow:CaptureView, WebContentsView:CaptureView, BaseWindow:class {}, View:class {}
     };
     const utils = load('utils', {
-      electron, './remote/windowBackends':{}, './nodeWrapper':{}, './constants':{}, './externalUrl':{}, './keybindings':{}, './loadingOverlay':{},
+      electron, './computer/previewViewers':{}, './hubWindows':{},
+      './remote/windowBackends':{}, './nodeWrapper':{}, './constants':{WCV_THREE_LAYER_STACK_FLAG:'enable-wcv-three-layer-stack'}, './externalUrl':{}, './keybindings':{}, './loadingOverlay':{},
       './paths':{getSettingsPbPath:()=>'/unused', getAppStoragePath:()=>'/unused'},
       fs:{existsSync:()=>false}, './wsl':{getActiveWslDistro:()=>null},
       './debugConsole':{isDebugConsoleEnabled:()=>false},
       './windowState':{resolveInitialWindowState:()=>({width:800,height:600})}
     });
-    assert.throws(()=>utils.createWindow(origin+'/home?project=sample',undefined,options), error=>error===stop);
-    assert.equal(captured.length, useViews ? 2 : 1);
+    const storage = threeLayer ? {getItemsSync:()=>({'enable-wcv-three-layer-stack':true})} : undefined;
+    assert.throws(()=>utils.createWindow(origin+'/home?project=sample',storage,options), error=>error===stop);
+    assert.equal(captured.length, useViews && !threeLayer ? 2 : 1);
     const hub = captured.at(-1);
     const args = options.additionalArguments || [];
     const remote = options.partition || args.includes('--agy-backend=ssh');
-    assert.deepEqual(Array.from(hub.additionalArguments || []), remote ? args : [...args,'--ag-zh-origin='+origin]);
+    const expected = remote ? [...args] : [...args,'--ag-zh-origin='+origin];
+    if (threeLayer) expected.push('--agy-wcv-three-layer-stack=1');
+    assert.deepEqual(Array.from(hub.additionalArguments || []), expected);
     assert.equal(hub.partition, options.partition);
     assert.equal(hub.contextIsolation, true);
     assert.equal(hub.nodeIntegration, false);
-    if (useViews) assert.deepEqual({...captured[0]}, {sandbox:true,javascript:false});
+    if (useViews && !threeLayer) assert.deepEqual({...captured[0]}, {sandbox:true,javascript:false});
   }
 });
 

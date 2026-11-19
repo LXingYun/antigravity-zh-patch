@@ -13,7 +13,8 @@ test('平台、架构与版本独立选择，Mac 指纹保留且未知版本拒�
  assert.equal(selectAdapter('darwin','arm64','2.28.1').asarSha256,'cec1039f841be1976dfeef6a9fdb6e71c6981e6857c222430105e3b6979612af');
  assert.equal(selectAdapter('darwin','arm64','2.29.0').asarSha256,'290e1b7a1caa430a0c5367c7b433e8d284e2ca5d0b305e91e5ce8ec926f43283');
  assert.equal(selectAdapter('darwin','arm64','2.32.1').asarSha256,'5b493943e67e500638555315594d5b1acbc7a02e6dac3c786651921c1ee8519f');
- for(const args of [['win32','x64','2.32.1'],['darwin','arm64','2.32.0'],['win32','x64','2.27.0'],['win32','x64','2.28.0'],['win32','x64','2.28.1'],['win32','arm64','2.26.0'],['darwin','arm64','2.26.0'],['darwin','arm64','2.30.0'],['win32','x64','2.29.0'],['win32','x64','2.25.0']])assert.throws(()=>selectAdapter(...args),/不支持.*拒绝/);
+ assert.equal(selectAdapter('darwin','arm64','2.33.0').asarSha256,'b33c81600e82e65593aa8430ef01b37d6b28d9d98f0faf45e25957783b71e64b');
+ for(const args of [['darwin','x64','2.33.0'],['darwin','arm64','2.33.1'],['win32','x64','2.32.1'],['darwin','arm64','2.32.0'],['win32','x64','2.27.0'],['win32','x64','2.28.0'],['win32','x64','2.28.1'],['win32','arm64','2.26.0'],['darwin','arm64','2.26.0'],['darwin','arm64','2.30.0'],['win32','x64','2.29.0'],['win32','x64','2.25.0']])assert.throws(()=>selectAdapter(...args),/不支持.*拒绝/);
 });
 test('Mac 未知版本在访问或修改应用资源之前被拒绝',{skip:process.platform!=='darwin'},async()=>{
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'ag-zh-version-'));

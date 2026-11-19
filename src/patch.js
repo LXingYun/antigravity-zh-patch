@@ -27,6 +27,7 @@ export function patchModule(name, source, adapterOverride=adapter, options={}) {
   const t = text => `require('./ag-zh-native').translate(${text})`;
   const replace = (node, text) => { out.overwrite(node.start,node.end,text); changes++; };
   const raw = node => code.slice(node.start,node.end);
+  const hasSharedAdditionalArgs = name === 'utils' && code.includes('const additionalArguments = options?.additionalArguments ?? [];');
   walk(ast, n => {
     if(adapter.platform==='win32'&&name==='ipcHandlers'&&n.type==='LogicalExpression'&&raw(n)==="item.label ?? ''")
       replace(n,"require('./ag-zh-native').translateContextItem(item)");
@@ -35,6 +36,8 @@ export function patchModule(name, source, adapterOverride=adapter, options={}) {
         replace(n, 'updater_1.updateActions[menuItem.__agZhSourceLabel || menuItem.label]');
       if (n.type === 'BinaryExpression' && raw(n) === 'item.label === submenuLabel')
         replace(n, '(item.__agZhSourceLabel || item.label) === submenuLabel');
+      if (n.type === 'BinaryExpression' && raw(n) === "item.label === 'View'")
+        replace(n, "(item.__agZhSourceLabel || item.label) === 'View'");
       if (n.type === 'CallExpression' && raw(n.callee) === 'electron_1.Menu.setApplicationMenu')
         replace(n, `(require('./ag-zh-native').localizeMenu(menu), ${raw(n)})`);
     }
@@ -52,11 +55,16 @@ export function patchModule(name, source, adapterOverride=adapter, options={}) {
       if (n.type === 'Property' && n.key.name === 'buttons' && n.value.type === 'ArrayExpression')
         for (const e of n.value.elements) if (e.type === 'Literal' && words[e.value]) replace(e,t(raw(e)));
     }
-    if (name === 'utils' && n.type === 'Property' && n.key.name === 'webPreferences') {
-      if(n.value.properties.some(p=>p.key.name==='additionalArguments')) throw Error('新增启动参数结构冲突');
-      if(code.slice(n.value.properties.at(-1).end,n.value.end-1).trim() !== ',') throw Error('窗口属性分隔符不匹配');
-      out.appendLeft(n.value.end-1, `additionalArguments: ['--ag-zh-origin=' + new URL(url).origin]\n`);
-      changes++;
+    if (name === 'utils') {
+      if (hasSharedAdditionalArgs) {
+        if (n.type === 'VariableDeclarator' && n.id?.name === 'additionalArguments' && raw(n.init) === 'options?.additionalArguments ?? []')
+          replace(n.init, "[...(options?.additionalArguments ?? []), ...(URL.canParse(url) ? ['--ag-zh-origin=' + new URL(url).origin] : [])]");
+      } else if (n.type === 'Property' && n.key.name === 'webPreferences') {
+        if(n.value.properties.some(p=>p.key.name==='additionalArguments')) throw Error('新增启动参数结构冲突');
+        if(code.slice(n.value.properties.at(-1).end,n.value.end-1).trim() !== ',') throw Error('窗口属性分隔符不匹配');
+        out.appendLeft(n.value.end-1, `additionalArguments: ['--ag-zh-origin=' + new URL(url).origin]\n`);
+        changes++;
+      }
     }
   });
   if (name === 'utils') {
@@ -76,7 +84,10 @@ export function patchModule(name, source, adapterOverride=adapter, options={}) {
 // Health acknowledgment contains only patch metadata, never page or account content.
 electron_1.ipcMain.on('ag-zh:ready', (event, state) => {
   try {
-    if (!electron_1.BrowserWindow.fromWebContents(event.sender) || event.senderFrame !== event.sender.mainFrame || state?.version !== '1.0.0') return;
+    const validSender = typeof utils_1 !== 'undefined' && typeof utils_1.isLocalHubTopFrame === 'function'
+      ? utils_1.isLocalHubTopFrame(event)
+      : Boolean(electron_1.BrowserWindow.fromWebContents(event.sender));
+    if (!validSender || event.senderFrame !== event.sender.mainFrame || state?.version !== '1.0.0') return;
     const fs = require('fs'), path = require('path');
     const file = ${options.healthFile ? JSON.stringify(options.healthFile) : "path.join(require('os').homedir(), 'Library/Application Support/Antigravity zh-CN/health.json')"};
     const dir = path.dirname(file);
@@ -86,7 +97,7 @@ electron_1.ipcMain.on('ag-zh:ready', (event, state) => {
   } catch { console.warn('[AG-ZH] health acknowledgment unavailable'); }
 });
 `);
-  const expected = {menu:4,updater:4,tray:3,main:6,preload:1,ipcHandlers:adapter.platform==='win32'?5:3};
+  const expected = adapter.expectedChanges || {menu:4,updater:4,tray:3,main:6,preload:1,ipcHandlers:adapter.platform==='win32'?5:3};
   if(changes!==expected[name]) throw Error(`${name}: 预期 ${expected[name]} 个修改点，实际 ${changes}`);
   const result=out.toString();parse(result,{ecmaVersion:'latest'});return result;
 }

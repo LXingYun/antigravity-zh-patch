@@ -21,6 +21,24 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     '[data-testid="permission-target-editor"]', '[data-testid="declared-permissions-arg"]',
     '[data-testid="entity-pill"]', '[data-testid="input-attachment"]',
     '[data-testid="project-customizations-content"]', '[data-testid="workspace-customizations-view"]', '[data-testid="customization-card"]', '[data-testid="sidecar-row"]',
+    '[data-testid="agent-response"]', '[data-testid="user-message"]', '[data-testid="user-message-content"]',
+    '[data-testid="transcript-line-text"]', '[data-testid="voice-user-message"]', '[data-testid="voice-agent-message"]',
+    '[data-testid="live-transcript"]', '[data-testid="live-user-turn"]', '[data-testid="live-agent-turn"]',
+    '[data-testid="side-question-tab-conversation"]', '[data-testid="side-question-followup-user"]',
+    '[data-testid="branch-pill-trigger"]', '[data-testid="branch-pill-label"]', '[data-testid="branch-repo-label"]', '[data-testid="location-selector-trigger"]',
+    '[data-testid="jj-worktree-selector-trigger"]', '[data-testid="jj-worktree-selector-label"]', '[data-testid="jj-previous-worktree-option"]',
+    '[data-testid="ssh-connect-host-option"]', '[data-testid="ssh-host-label"]', '[data-testid="ssh-host-project-item"]',
+    '[data-testid="ssh-config-file-name"]', '[data-testid="overview-panel-host-header"]',
+    '[data-testid="browser-url-display"]', '[data-testid="browser-omnibox-pill"]', '[data-testid="url-security-host"]',
+    '[data-testid="browser-site-data-site"]', '[data-testid="browser-cert-error-code"]', '[data-testid="webview-download-filename"]',
+    '[data-testid="webview-prompt-message"]', '[data-testid="webview-prompt-origin"]', '[data-testid="builtin-browser-download-dir-value"]',
+    '[data-testid="external-link-confirm-uri"]', '[data-testid="webview-device-chooser-option"]',
+    '[data-testid="automation-name"]', '[data-testid="automation-instructions-markdown"]', '[data-testid="automation-instructions-text"]',
+    '[data-testid="background-task-command"]', '[data-testid="coordinator-card-title"]', '[data-testid="coordinator-card-latest-line"]',
+    '[data-testid="coordinator-chat-header"]', '[data-testid="attached-context-pill"]', '[data-testid="selected-agent-chip"]',
+    '[data-testid="custom-view-pane-title"]', '[data-testid="plugin-view-title-bar-title"]', '[data-testid="mobile-plugin-view-title"]',
+    '[data-testid="voice-settings-name"]', '[data-testid="voice-picker-name"]', '[data-testid="voice-settings-mic"]',
+    '[data-testid="lsp-symbol-hover-card"]', '[data-testid="lsp-reference-item"]', '[data-testid="csv-file-viewer"]',
     '[data-ag-zh-protect]'
   ].join(',');
   const uiIds = [
@@ -40,7 +58,17 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     'sort-folders-submenu-trigger', 'new-sidecar-modal', 'new-sidecar-submit',
     'model-selector-context-window-badge', 'model-selector-context-window-tooltip',
     'model-selector-context-window-submenu', 'model-selector-loading',
-    'empty-file-open-button', 'open-editor-empty', 'terminal-empty', 'add-mcp-screen'
+    'empty-file-open-button', 'open-editor-empty', 'terminal-empty', 'add-mcp-screen',
+    'bottom-terminal-panel-title', 'bottom-terminal-panel-empty', 'bottom-terminal-panel-starting',
+    'webview-download-drawer', 'webview-downloads-empty', 'webview-downloads-clear-all', 'webview-download-agent-badge',
+    'browser-cert-interstitial', 'browser-loopback-loading-state', 'browser-loopback-unavailable-state', 'url-security-popover',
+    'running-empty', 'running-selection-bar', 'running-confirm-stop',
+    'automation-run-now', 'automation-restart', 'automation-instructions-edit', 'automation-settings-edit',
+    'automation-settings-save', 'automation-settings-cancel', 'automation-runs-all',
+    'schedule-editor-save', 'schedule-editor-reset', 'sidecar-detail-run-now',
+    'project-selector-connect-ssh-host', 'project-selector-create-project-trigger', 'ssh-machine-switcher-this-computer',
+    'voice-delete-recordings-modal', 'voice-picker', 'voice-end-button', 'voice-call-end',
+    'home-greeting', 'external-link-confirm-modal', 'plugin-source-caution-modal'
   ];
   const attributes = ['title', 'aria-label', 'placeholder', 'data-placeholder'];
   const state = { version: '1.0.0', translated: 0, slices: 0, pending: 0, errors: 0, stop };
@@ -67,6 +95,22 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     }
     // Explicit templates preserve numbers; no substring replacement.
     if (value === undefined && /^\d+ agents? running$/.test(key)) value = `${key.split(' ')[0]} 个智能体正在运行`;
+    if (value === undefined && el?.matches('h1.home-greeting-title') && el.closest('[data-testid="home-greeting"]')) {
+      const hey=key.match(/^Hey (.+), what should we build today\?$/);
+      const back=key.match(/^Welcome back, (.+)\. Where should we pick up\?$/);
+      const next=key.match(/^Good to see you, (.+)\. What's next\?$/);
+      if (hey) value=`你好，${hey[1]}，今天想做些什么？`;
+      if (back) value=`欢迎回来，${back[1]}。接下来从哪里继续？`;
+      if (next) value=`很高兴见到你，${next[1]}。接下来做什么？`;
+    }
+    if (value === undefined && isSidebarPagination(el)) {
+      const count=key.match(/^See all \((\d+)\)$/);
+      if (count) value=`查看全部（${count[1]}）`;
+    }
+    if (value === undefined && el?.matches('[data-testid="voice-picker-use"]')) {
+      const voice=key.match(/^Use (.+)$/);
+      if (voice && voiceNames.has(voice[1])) value=`使用 ${voice[1]}`;
+    }
     if (value === undefined && el?.closest('.settings-modal-container') && key.startsWith('Send feedback as ')) value = '以 ' + key.slice(17) + ' 的身份发送反馈';
     if (value === undefined && el?.closest('[data-testid="customizations-empty-state"]')) {
       const empty = key.match(/^No plugins found for "(.*)"\.$/);
@@ -85,18 +129,50 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
   const deniedIds = new Set([...deny.matchAll(/\[data-testid="([^"]+)"\]/g)].map(m=>m[1]));
   const uiIdSet = new Set(uiIds);
   const roles = new Set(['dialog','alertdialog','menu','menuitem','menuitemradio','option','tooltip','alert']);
-  const settingsNav = new Set(['General','App','Application','Appearance','Notifications','Models','Conversations','Shortcuts','Provide Feedback','Projects','Workspaces']);
+  const settingsNav = new Set(['General','App','Application','Appearance','Notifications','Models','Customizations','Browser','Conversations','Shortcuts','Developer','Running','Jetski Chat','Provide Feedback','Projects','Workspaces','Agents','Environments']);
+  const userNavSections = new Set(['Projects','Workspaces','项目','工作区']);
+  function isSettingsUserItem(el, id) {
+    if (!id.startsWith('settings-nav-item-')) return false;
+    if (!settingsNav.has(id.slice(18))) return true;
+    const sectionHeading = el.parentElement?.parentElement?.previousElementSibling?.querySelector('h2')?.textContent?.trim();
+    return Boolean(sectionHeading && userNavSections.has(sectionHeading));
+  }
   // These wrappers mix app chrome with user-owned names. They remain blocked by
   // default; only the exact badges, headings and attributes below may be translated.
   const mixedIds = new Set(['model-selector-trigger','project-selector-trigger',
-    'project-customizations-content','workspace-customizations-view','customization-card','sidecar-row']);
+    'project-customizations-content','workspace-customizations-view','customization-card','sidecar-row',
+    'voice-settings-name','voice-settings-mic','branch-pill-trigger','location-selector-trigger']);
+  const voiceNames = new Set(['Fola','Arlo','Cleo','Finn','Gero','Lora','Neno','Olin','Tari']);
+  // Audited built-in command labels; custom/unknown command names are left alone.
+  const shortcutCommands = new Set(['Accept Step','Reject Step','Toggle Model Selector','Start Voice Recording','Stop Voice Recording',
+    'Toggle Voice Recording','Mute Voice Mic','Mute Voice Speaker','Toggle Terminal','Toggle Word Wrap','Toggle Project Selector',
+    'Toggle Environment Selector','Toggle Side Panel','Toggle Maximize Side Panel','Toggle Overview Panel','New Conversation','New Window',
+    'Close Tab','Open Settings','Split Terminal','Split Conversation Vertically','Split Conversation Horizontally','Equalize Split Panes',
+    'New Terminal Tab','New Tab','Reopen Closed Tab','File Picker','Open File Search','Open Command Palette','Open Conversation Picker','Search Conversations',
+    'Open Workspace Selector','Open in Cider','Add to Chat','Quote Selection','Side Question Selection','Open in Code Search',
+    'Comment on Selection','Focus Input','Zoom In','Zoom Out','Reset Zoom','Find in Pane','Go Back','Go Forward','Code Search',
+    'Scheduled Tasks','Automations','Select Next Conversation','Select Previous Conversation','Move Conversation Up','Move Conversation Down',
+    'Open Keyboard Shortcuts','Terminal: Add to Chat','Refresh gcert Credentials','Toggle Sidebar','Provide Feedback',
+    'Copy Conversation Markdown','Archive This Conversation','Pin This Conversation','Unpin This Conversation','Find in Conversation',
+    'Jump to Previous Prompt','Jump to Next Prompt','Mark All as Read','Mark This Conversation as Read','Mark This Conversation as Unread',
+    'Rename This Conversation','Move to New Group','Remove from Group','Open Trajectory Debug View','Copy Conversation ID',
+    'Copy Trajectory ID','Download Diagnostics','Toggle Between Light/Dark Themes','Connect to SSH Host…','Stop SSH Server…',
+    'Switch to This Computer','Previous Side Panel Tab','Next Side Panel Tab','Collapse All Folders','Expand All Folders',
+    'Select All','Cancel Generation','Submit Prompt (Alternate to Enter)']);
   const chromeAttributes = new Set(['Display Options','More Actions','Go Back','Go Forward',
     'Toggle Sidebar','Toggle sidebar','Toggle Sidebar, conversations need attention',
     'Search Conversations','Typeahead menu','Sidebar','Notifications','Copy path','Copy Path',
-    'Copy Config File Path','Copied','Path copied!','Clear search',
+    'Copy Config File Path','Copied','Path copied!','Clear search','Clear Search',
     'Customizations views','Customizations source','Create plugin','Dismiss error',
     'Actions','Add automation','Select model','Context window','Search customizations...',
-    'Search MCP servers by name']);
+    'Search MCP servers by name','Open settings menu','Upload Debug Bundle','Close Panel',
+    'Close Sidebar','New Terminal','Close downloads','View site information','Search shortcuts...',
+    'Search branches','Search sites...','Filter files...','Open Terminal',
+    'Toggle Terminal Panel','Toggle Side Panel','Stop execution','Stop subagent',
+    'Forward','Show in folder','Cancel download','Remove from list','Project options','New Conversation in Project',
+    'New Conversation in Workspace','Archive conversation','Pin conversation','Unpin conversation','More options','More actions',
+    'Start Voice mode','End Voice mode','Start Live Chat','End Live chat','Previous voice','Next voice','Voice volume',
+    'Background color picker','Foreground color picker','Accent color picker']);
   const historyText = new Set(['This page is going away soon','Search conversations with',
     'in the top left.','View archived in the sidebar','menu)']);
   const emptyConversations = new Set(['No conversations yet','No conversations found',
@@ -106,9 +182,22 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     'Loading available plugins...','Loading installed plugins...','Loading workspace customizations...',
     'Loading token usage...','No token data available.','There are no customizations enabled.',
     'The breakdown below shows token usage from customizations like rules, skills, and MCP. If a budget is exceeded, large rules are demoted to path pointers and large customizations are excluded automatically.']);
+  function isSidebarPagination(el) {
+    return el?.matches('button.select-none.text-muted-foreground') &&
+      el.closest('[data-testid="conversation-list-sidebar"]') && !el.closest('[data-sidebar-row-id]');
+  }
+  function isVoiceMicList(el) {
+    return el?.getAttribute('role') === 'listbox' && Boolean(el.id) &&
+      doc.querySelector('[data-testid="voice-settings-mic"] [role="combobox"]')?.getAttribute('aria-controls') === el.id;
+  }
   function extraTextAllowed(node, el) {
     const old = originals.get(node);
     const key = (old && node.nodeValue === old.translated ? old.source : node.nodeValue).trim();
+    if (isSidebarPagination(el) && (/^See all \(\d+\)$/.test(key) || key === 'See less')) return true;
+    // The original validates voice names, and suffixes duplicate microphone labels.
+    // These two exact placeholders cannot be actual voice/device display names.
+    if (key === 'Not set' && el.matches('[data-testid="voice-settings-name"]')) return true;
+    if (key === 'System default' && (el.closest('[data-testid="voice-settings-mic"]') || isVoiceMicList(el.closest('[role="listbox"]')))) return true;
     if (win.location.pathname === '/history' && historyText.has(key) && el.tagName === 'SPAN') return true;
     if (win.location.pathname === '/history' && ['(','.'].includes(key) && el.closest('.rounded-lg.border.bg-card')) return true;
     if (emptyConversations.has(key) && el.matches('.select-none.text-muted-foreground,span.select-none.opacity-30')) return true;
@@ -129,6 +218,23 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     if (!['aria-label','title','placeholder'].includes(attr)) return source;
     const id = el.getAttribute('data-testid');
     if (attr === 'aria-label') {
+      if (id === 'branch-pill-trigger' && source.startsWith('Branch, current: ')) return '分支，当前：' + source.slice(17);
+      if (id === 'location-selector-trigger' && source.startsWith('Where the agent runs, current: ')) return '智能体运行位置，当前：' + source.slice(31);
+      if (id?.startsWith('voice-picker-dot-') && el.closest('[data-testid="voice-picker"]')) {
+        const voice=source.match(/^(.+), voice (\d+) of (\d+)$/);
+        if (voice && voiceNames.has(voice[1])) return `${voice[1]}，音色 ${voice[2]}/${voice[3]}`;
+      }
+      if (el.closest('[data-testid^="shortcut-row-"]')) {
+        const shortcut=source.match(/^(Shortcut|Remove shortcut) (.+) for (.+)$/);
+        const add=source.match(/^Add shortcut for (.+)$/),reset=source.match(/^Reset (.+) to default$/);
+        const command=shortcut?.[3] || add?.[1] || reset?.[1];
+        if (command && shortcutCommands.has(command) && Object.hasOwn(dictionary,command)) {
+          const label=dictionary[command];
+          if (shortcut) return shortcut[1] === 'Shortcut' ? `${label}的快捷键：${shortcut[2]}` : `移除${label}的快捷键 ${shortcut[2]}`;
+          if (add) return `为${label}添加快捷键`;
+          return `将${label}恢复为默认快捷键`;
+        }
+      }
       if (el.tagName === 'BUTTON' && win.location.pathname.startsWith('/customizations') && source.startsWith('More actions for ')) return source.slice(17) + ' 的更多操作';
       if (id === 'model-selector-trigger' && source.startsWith('Select model, current: ')) return '选择模型，当前：' + source.slice(23);
       if (id === 'project-selector-trigger' && source.startsWith('Select project, current: ')) {
@@ -138,9 +244,13 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
       if (id === 'permissions-selector-trigger' && source.startsWith('Agent permissions preset selector, current: ')) {
         const preset=source.slice(44);return '权限预设，当前：' + (dictionary[preset] || preset);
       }
+      if (source.startsWith('Switch environment (') && source.endsWith(')')) {
+        const env = source.slice(20, -1);
+        return '切换环境（' + (dictionary[env] || env) + '）';
+      }
     }
     if (chromeAttributes.has(source) ||
-        (el.matches('input,textarea') && (['customizations-search','new-sidecar-name','new-sidecar-prompt','fastpick-input'].includes(id) || el.closest('[data-testid="sidecars-view"],[data-testid="new-sidecar-modal"],[data-testid="add-mcp-screen"]'))) ||
+        (el.matches('input,textarea') && (['customizations-search','new-sidecar-name','new-sidecar-prompt','fastpick-input','project-selector-cloud-search','project-selector-ssh-host-search','branch-search','file-tree-filter-input'].includes(id) || el.closest('[data-testid="sidecars-view"],[data-testid="new-sidecar-modal"],[data-testid="add-mcp-screen"]'))) ||
         (el.matches('span[aria-label].rounded-full.font-normal') && ['Built In','Global','Workspace'].includes(source))) return translate(source,el);
     return source;
   }
@@ -151,22 +261,23 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     const parent = scope(el.parentElement);
     const id = el.getAttribute('data-testid') || '';
     const staticNoProject = id === 'project-selector-trigger' && !el.querySelector('[data-project-icon]') && ['Select project, current: No Project','选择项目，当前：无项目'].includes(el.getAttribute('aria-label'));
-    const ownBlock = deniedTags.has(el.tagName) || (deniedIds.has(id) && !staticNoProject) ||
-      ['data-cascade-id','data-project-name','data-project-label','data-model-base','data-model-label','data-ag-zh-protect'].some(a=>el.hasAttribute(a)) ||
+    const userNavBlocked = isSettingsUserItem(el, id);
+    const ownBlock = isVoiceMicList(el) || deniedTags.has(el.tagName) || (deniedIds.has(id) && !staticNoProject) ||
+      ['data-cascade-id','data-project-name','data-project-label','data-model-base','data-model-label','data-ssh-host','data-ag-zh-protect'].some(a=>el.hasAttribute(a)) ||
       (el.hasAttribute('contenteditable') && el.getAttribute('contenteditable') !== 'false') ||
       el.classList.contains('monaco-editor') || el.classList.contains('xterm') ||
-      (id.startsWith('settings-nav-item-') && !settingsNav.has(id.slice(18)));
+      userNavBlocked;
     const result = { blocked: parent.blocked || ownBlock,
       hardBlocked: parent.hardBlocked || deniedTags.has(el.tagName) ||
         (deniedIds.has(id) && !mixedIds.has(id)) ||
-        ['data-cascade-id','data-project-name','data-project-label','data-model-base','data-ag-zh-protect'].some(a=>el.hasAttribute(a)) ||
+        ['data-cascade-id','data-project-name','data-project-label','data-model-base','data-ssh-host','data-ag-zh-protect'].some(a=>el.hasAttribute(a)) ||
         (el.hasAttribute('data-model-label') && id !== 'model-selector-item') ||
         (el.hasAttribute('contenteditable') && el.getAttribute('contenteditable') !== 'false') ||
         el.classList.contains('monaco-editor') || el.classList.contains('xterm') ||
-        (id.startsWith('settings-nav-item-') && !settingsNav.has(id.slice(18))),
+        userNavBlocked,
       allowed: parent.allowed || staticNoProject || uiIdSet.has(id) || roles.has(el.getAttribute('role')) ||
         el.classList.contains('settings-modal-container') || ['H1','H2','H3'].includes(el.tagName) ||
-        (el.tagName === 'A' && el.getAttribute('href') === '/customizations') };
+        (el.tagName === 'A' && (el.getAttribute('href') || '').startsWith('/customizations')) };
     scopeCache.set(el,result);
     return result;
   }
@@ -224,7 +335,7 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
       const chromeInput = el.matches('input,textarea,[contenteditable]') &&
         !parentScope.hardBlocked &&
         (el.closest('.settings-modal-container, [data-testid="agent-input-box"]') ||
-         el.matches('[data-testid="history-search-input"], [data-testid="project-selector-search"]'));
+         el.matches('[data-testid="history-search-input"], [data-testid="project-selector-search"], [data-testid="project-selector-cloud-search"], [data-testid="project-selector-ssh-host-search"], [data-testid="branch-search"], [data-testid="file-tree-filter-input"]'));
       if ((!protectedNode && classification.allowed) || chromeInput) {
         for (const attr of attributes) {
           const source = el.getAttribute(attr);
@@ -271,12 +382,14 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
       }
       if (r.type === 'childList') r.addedNodes.forEach(enqueue);
       else enqueue(r.target);
+      if (r.type === 'attributes' && r.attributeName === 'aria-controls' && r.target.closest('[data-testid="voice-settings-mic"]'))
+        enqueue(doc.getElementById(r.target.getAttribute('aria-controls')));
     }
   });
   function start() {
     if (stopped) return;
     observer.observe(doc.documentElement, { subtree: true, childList: true, characterData: true,
-      attributes: true, attributeFilter: [...attributes, 'class','role','contenteditable','data-testid','data-cascade-id','data-project-name','data-project-label','data-model-label'] });
+      attributes: true, attributeFilter: [...attributes, 'class','role','contenteditable','data-testid','data-cascade-id','data-project-name','data-project-label','data-model-label','data-ssh-host','aria-controls'] });
     enqueue(doc.documentElement);
   }
   function stop() { stopped = true; observer.disconnect(); pending.clear(); jobs.length = 0; state.pending = 0; }

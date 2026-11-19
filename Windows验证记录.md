@@ -1,6 +1,6 @@
 # Windows 适配验证记录
 
-日期：2026-10-25。本记录针对 Antigravity **App 2.26.0 / Windows x64**，不代表 IDE、Windows arm64 或后续版本可用。
+日期：2026-10-25（2.26.0），更新：2026-11-19（2.33.0）。本记录针对 Antigravity **App 2.26.0 / 2.33.0 / Windows x64**，不代表 IDE、Windows arm64 或未列出的后续版本可用。
 
 ## 环境与来源
 
@@ -63,3 +63,39 @@
 未进行真实模型请求、项目修改、插件安装、自动化创建、系统通知触发、托盘交互或官方更新下载；这些不能由本次 UI 验收推断为已测。原生菜单更新回调及托盘逻辑有自动测试覆盖。服务端公告、`Dismiss`、`Give Feedback` 等少量新文案仍可能为英文；未扩大到用户内容区域做无差别翻译。
 
 后续升级顺序：恢复原版 → 官方升级 → 确认对应版本已有独立适配 → 再安装。未知版本不会自动套用本补丁。
+
+## 2.33.0 适配更新验证（2026-11-19）
+
+本轮针对已升级的 **Antigravity App 2.33.0 / Windows x64** 新增独立适配 `data/adapter-2.33.0-win32-x64.json`，同时完整保留 macOS arm64 2.25.0 与 Windows x64 2.26.0 基线。
+
+### 环境与官方来源
+
+- 安装目录：`%LOCALAPPDATA%\Programs\antigravity`。
+- Node.js `24.19.0`，Electron `44.9.1`。
+- [Google 官方安装包](https://storage.googleapis.com/antigravity-public/antigravity-hub/2.33.0-4731201358004224/windows-x64/Antigravity-x64.exe)的 Authenticode 状态为 `Valid`，签署者 `Google LLC`，SHA-256 为 `44aea1c00f3b347fd60ab7291d267dbb04a5080f6c3212a8a31cf1426ddf86cb`（与官方更新清单 `latest-x64-win.yml` 的 SHA-512 一致）。
+- 静态提取的 454 个核心分发文件及可选 `Uninstall Antigravity.exe`（SHA-256 `e6444d8ef27e5abbeead467392709bf5da9dc2fd87c693b36d838824cda8e19a`）与本机安装目录逐项一致。
+- 主程序 `Antigravity.exe`（SHA-256 `cfc4f8fdabbf5da7ab498ec0078fbb5aa123f30bb2da347a415c1a74f67449ef`）与语言服务 `resources/bin/language_server.exe`（SHA-256 `eb6d986dfc5a859c6e9b1b36a0601f5c362993cc16eb8962ad554c9141defc9c`）原厂状态仍为 `NotSigned`。
+- 原始 ASAR SHA-256：`b33c81600e82e65593aa8430ef01b37d6b28d9d98f0faf45e25957783b71e64b`。
+- fuse schema 仍为 version 1、count 9、values `101100011`，ASAR 完整性强制校验原厂未启用。
+
+### 架构与词库变更
+
+- **多版本适配器调度**：`src/adapters.js` 与 `src/installers/windows.js` 依据目标目录版本号动态匹配适配器，隔离计算各自 `recipeHash`、安装身份与事务校验。
+- **窗口与健康确认兼容**：2.33.0 默认采用 `BaseWindow` + `WebContentsView` (`hubWcv`) 与共享 `additionalArguments`。`src/patch.js` 改在共享变量点注入 `--ag-zh-origin` 并完整保留 `--agy-backend=ssh` 等参数；`main.js` 健康确认改用 `utils_1.isLocalHubTopFrame(event)` 识别本地顶帧。
+- **菜单与弹窗**：`dist/menu.js` 增强 `View` 菜单查找幂等性；`src/native.cjs` 扩充 `pin`、`mark-read`、`fork`、`restore`、`open-in-*` 等固定命令 ID/标签白名单；`dist/ipcHandlers.js` 覆盖新增的 `Select Download Folder`（“选择下载文件夹”）。
+- **DOM 隔离与词库**：`src/runtime.js` 补齐 2.33.0 设置侧栏导航白名单及 `Projects`/`Workspaces` 下同名项目防误翻，并将对话消息、Git 分支、SSH 主机、下载文件名/路径、自动化指令 Markdown、语音设备/音色等纳入硬保护；`data/zh-CN.json` 新增 225 条词条，总计 1336 条。
+
+### 自动测试与只读校验
+
+- `npm test`：**38 项测试，37 通过，0 失败，1 跳过**（总耗时约 200 秒，跳过项为需 macOS 的未知版本 `Info.plist` 检查），涵盖 2.33.0 官方副本重打包、原生模块 VM 行为、受限 DOM 与隔离规则，以及在隔离副本中完成的备份/安装/重复安装/篡改拒绝/中断恢复/还原全流程。
+- 只读 `node src/cli.js check`：退出码 0，核实本机 2.33.0 安装匹配 Google 签名安装器基线，待处理事务为空。
+- **初次适配阶段**：当时会话运行在 Antigravity 2.33.0 实例内，仅完成上述自动测试与只读检查；后续本机安装及补漏验收见下节。
+
+### 首页与语音补漏、实机重装（2026-11-19）
+
+- 在 1336 条词库基础上补充 52 条，总计 **1388 条**；补齐首页三组轮换欢迎语、侧栏分页与操作、界面布局说明、语音设置与音色弹窗、字体/颜色选择、浏览器设置和快捷键属性。欢迎语保留用户名，音色/麦克风名称与快捷键组合保留原值。
+- `npm run test:runtime`：**17/17 通过**。新增回归覆盖动态文本更新、真实音色及设备名称保护、系统默认占位、受保护正文、侧栏计数和快捷键标签；补充检查 `Ctrl+P` 文件搜索与 `Ctrl+U` 自动化的标签。
+- 正常关闭应用后执行 `restore` → `install`，恢复与重装均退出码 0；安装结果为 `installed: true`、`recipeCurrent: true`、`pending: []`，启动就绪确认匹配 2.33.0 及本次安装标识。
+- 实机确认：首页欢迎语和“查看全部（8）”显示中文；常规页的界面布局、远程权限说明、语音模式、未设置、系统默认、音量说明均已翻译；音色弹窗标题、描述、切换按钮、序号与“使用 Fola”显示正常，音色名保留英文。仅查看并关闭音色弹窗，没有保存音色或修改其他设置。
+- 实机核对快捷键页：命令面板、关闭/重新打开标签页及文件搜索、自动化的操作属性已中文，组合键保持原值；浏览器页的“更改…”和“浏览历史记录”已中文，下载目录保持原值。
+- 继续使用原版完整备份：`%LOCALAPPDATA%\Antigravity zh-CN\instances\35becd24a8ad2d15cb6d5529\backups\win32-x64-2.33.0-b33c81600e82e655\`。

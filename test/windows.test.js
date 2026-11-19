@@ -69,7 +69,7 @@ test('Windows 只读归档写入失败时原文件保持不变',windows,()=>temp
  finally{await fs.chmod(file,0o666);await fs.chmod(file+'.ag-zh-tmp',0o666).catch(()=>{});}
 }));
 test('Windows 安装副本：完整备份、重复安装、未知资源拒绝、恢复与事务记录恢复',
- {skip:process.platform!=='win32'||!original,timeout:180000},()=>temporary(async dir=>{
+ {skip:process.platform!=='win32'||!original,timeout:360000},()=>temporary(async dir=>{
  const app=path.join(dir,'中文 App'),state=path.join(dir,'state'),installer=createInstaller({stateBase:state});
  await win.copyApp(path.dirname(path.dirname(original)),app);
  const before=await win.manifest(app),p=instancePaths(app,state);

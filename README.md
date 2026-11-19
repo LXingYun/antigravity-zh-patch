@@ -26,7 +26,7 @@ Antigravity App 2.33.0 的 Apple Silicon Mac 和 Windows x64 共用 `main`。在
 | macOS arm64 | `安装汉化.command` | `恢复原版.command` |
 | Windows x64 | `安装汉化.cmd` | `恢复原版.cmd` |
 
-**Windows 使用 `.cmd`，Mac 使用 `.command`**：
+如果同版本已安装旧构建或 Windows 分支的补丁，退出应用后先双击本平台的“恢复原版”，再运行主分支的“安装汉化”。
 
 - `检查兼容性`：检查版本、资源指纹、签名状态和未完成的安装事务。
 - `安装汉化`：应用退出后安装；默认启动并等待翻译引擎就绪。

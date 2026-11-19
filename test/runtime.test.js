@@ -8,7 +8,15 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 async function fixture(html) {
   const dom=new JSDOM(html,{url:origin,pretendToBeVisual:true});
   const state=startTranslator(dom.window,words,origin);
-  await delay(150);
+  const deadline = performance.now() + 10_000;
+  do {
+    await new Promise(resolve => dom.window.requestAnimationFrame(resolve));
+    if (state.slices > 0 && state.pending === 0) break;
+    if (performance.now() >= deadline) {
+      dom.window.close();
+      assert.fail('初次翻译扫描未在 10 秒内完成');
+    }
+  } while (true);
   return {dom,state,doc:dom.window.document,close:()=>dom.window.close()};
 }
 test('2.29 首页问候保留姓名，同名下载目录、草稿和对话不被翻译',async()=>{

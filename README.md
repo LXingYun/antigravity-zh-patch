@@ -4,7 +4,7 @@
 
 ## 获取源码
 
-仓库：<https://github.com/LXingYun/antigravity-zh-patch>（私有，需要有访问权限的 GitHub 账号）。
+仓库：<https://github.com/LXingYun/antigravity-zh-patch>（公开）。
 
 ```sh
 git clone https://github.com/LXingYun/antigravity-zh-patch.git

@@ -21,6 +21,12 @@ test('WSL 用户命名与原生右键菜单未知标签保持原样，固定命�
  assert.equal(native.translateContextItem({id:'copy',label:'Settings'}),'Settings');
  assert.equal(native.translateContextItem({id:'project-user',label:'New Project'}),'New Project');
  assert.equal(native.translateContextItem({id:'cmi-0',label:'Settings'}),'Settings');
+ assert.equal(native.translateContextItem({id:'pin',label:'Pin'}),'置顶');
+ assert.equal(native.translateContextItem({id:'pin',label:'Unpin'}),'取消置顶');
+ assert.equal(native.translateContextItem({id:'delete',label:'Delete Permanently'}),'永久删除');
+ assert.equal(native.translateContextItem({id:'open-in-builtin-browser',label:'Open in Built-in Browser'}),'在内置浏览器中打开');
+ assert.equal(native.translateContextItem({id:'group-1',label:'Settings'}),'Settings');
+ assert.equal(native.translateContextItem({id:'pin',label:'My Project'}),'My Project');
 });
 
 test('真实原生右键菜单构建保留命令 ID、回调与快捷键',{skip:!original||!(selectedAdapter.platform==='win32'||selectedAdapter.contextMenu)},()=>{
@@ -33,7 +39,11 @@ test('真实原生右键菜单构建保留命令 ID、回调与快捷键',{skip:
 class Menu {
   constructor(items=[]) {this.items=items;}
   insert(pos,item){this.items.splice(pos,0,item);}
-  getMenuItemById(id){for(const item of this.items){if(item.id===id)return item;const child=item.submenu?.getMenuItemById(id);if(child)return child;}}
+  getMenuItemById(id){for(const item of this.items){if(item.id===id)return item;const child=item.submenu?.getMenuItemById?.(id);if(child)return child;}}
+}
+function autoStub() {
+  const fn=()=>autoStub();
+  return new Proxy(fn,{get:(t,k)=>k==='__esModule'?true:k==='WSL_STATE_FILE'?'wsl.json':k===Symbol.toPrimitive?()=>'':autoStub()});
 }
 const browserIpcMocks = {
   './paths': {}, './debugConsole': {}, './deviceChooser': {deviceChooserController:{setHostResolver() {}}}, './guestFileChooserController': {},
@@ -45,7 +55,15 @@ const browserIpcMocks = {
 };
 function load(n,mocks,append='') {
   const exports={};
-  const context={exports,require:name=>Object.hasOwn(mocks,name)?mocks[name]:req(name),console,process,URL,setTimeout,clearTimeout,setInterval,clearInterval,__dirname:'/app/dist'};
+  const context={
+    exports,
+    require:name=>{
+      if(Object.hasOwn(mocks,name))return mocks[name];
+      if(name.startsWith('./')||['electron','electron-updater','electron-log/main'].includes(name))return autoStub();
+      return req(name);
+    },
+    URL,console,process,setTimeout,clearTimeout,setInterval,clearInterval,__dirname:'/app/dist'
+  };
   vm.runInNewContext(patchModule(n,source(n),selectedAdapter)+append,context);return exports;
 }
 test('原生菜单翻译后，新建窗口、快捷键和更新动作仍正常',requiresOriginal,async()=>{
@@ -60,6 +78,7 @@ test('原生菜单翻译后，新建窗口、快捷键和更新动作仍正常',
   const module=load('menu',{'./hubZoom':hubZoom,'electron':electron,'./utils':{isMacOS:()=>true,createWindow:()=>opened++},'./updater':updater,'./wsl':{isWslAvailable:()=>false},'./debugConsole':{configureDebugConsoleMenu(){}},'./ag-zh-native':native});
   module.setupApplicationMenu('https://127.0.0.1:1');
   assert.equal(menu.items[1].label,'文件');assert.equal(file.items[0].label,'新建窗口');
+  assert.equal(view.items[0].label,'实际大小');
   assert.equal(file.items[0].accelerator,'CmdOrCtrl+Shift+N');file.items[0].click();assert.equal(opened,1);
   if (selectedAdapter.hubWindowArguments) {
     const target={};
@@ -100,14 +119,44 @@ test('未知资源被拒绝，预加载保留原 API 且只注入一次',require
 
 test('原生文件夹选择框标题汉化，保留路径、选项和取消行为',requiresOriginal,async()=>{
  const handlers=new Map();let options,canceled=false;
- const electron={ipcMain:{handle:(id,fn)=>handlers.set(id,fn),on(){}},dialog:{showOpenDialog:async o=>{options=o;return {canceled,filePaths:['/tmp/Settings']};}}};
- const mocks={'electron':electron,'electron-updater':{},'./types':{},'./updater':{},'electron-log/main':{},'./customScheme':{},'./tray':{},'./ideInstall/constants':{},'./wsl':{getActiveWslDistro:()=>null},'./menu':{},'./scriptJail':{},'./utils':{},'./ag-zh-native':native};
- const module=load('ipcHandlers',{...browserIpcMocks,...mocks});module.registerIpcHandlers({});
- assert.equal(await handlers.get('dialog:open-workspace')(),'/tmp/Settings');assert.equal(options.title,'打开工作区');
+ const sampleDir=path.resolve('/tmp/Settings');
+ const electron={ipcMain:{handle:(id,fn)=>handlers.set(id,fn),on(){},removeListener(){},removeAllListeners(){}},dialog:{showOpenDialog:async o=>{options=o;return {canceled,filePaths:[sampleDir]};}},BrowserWindow:{fromWebContents:()=>null},app:{getPath:()=>path.resolve('/tmp/Downloads')}};
+ const module=load('ipcHandlers',{'electron':electron,'./wsl':{getActiveWslDistro:()=>null},'./remote/remoteWindowSecurity':{isRemoteContents:()=>false},'./ag-zh-native':native});
+ module.registerIpcHandlers({});
+ assert.equal(await handlers.get('dialog:open-workspace')({}),sampleDir);assert.equal(options.title,'打开工作区');
  assert.equal(Array.from(options.properties).join(','),'openDirectory,createDirectory');
- assert.equal(Array.from(await handlers.get('dialog:open-workspaces')()).join(','),'/tmp/Settings');assert.equal(options.title,'打开工作区');
+ assert.equal(Array.from(await handlers.get('dialog:open-workspaces')({})).join(','),sampleDir);assert.equal(options.title,'打开工作区');
  assert.equal(Array.from(options.properties).join(','),'openDirectory,createDirectory,multiSelections');
- canceled=true;assert.equal(await handlers.get('dialog:open-workspace')(),undefined);assert.equal((await handlers.get('dialog:open-workspaces')()).length,0);
+ canceled=true;assert.equal(await handlers.get('dialog:open-workspace')({}),undefined);assert.equal((await handlers.get('dialog:open-workspaces')({})).length,0);
+ if(handlers.has('dialog:select-download-dir')) {
+  canceled=false;await handlers.get('dialog:select-download-dir')({sender:{id:1,isDestroyed:()=>false},senderFrame:{parent:null}});
+  assert.equal(options.title,'选择下载文件夹');
+ }
+});
+
+test('本地主窗口的顶帧发送就绪确认', {skip:!original || !selectedAdapter.hubWindowArguments},()=>{
+ const mainCode=patchModule('main',source('main'),selectedAdapter);
+ assert.ok(mainCode.includes('isLocalHubTopFrame'));
+ const healthFile=path.join(os.tmpdir(),`ag-zh-health-test-${process.pid}.json`);
+ try {
+  const listeners=new Map();
+  const mainFrame={id:'main'};
+  const electron={app:{requestSingleInstanceLock:()=>false,quit(){},getName:()=>'Antigravity',getVersion:()=>selectedAdapter.version,getAppPath:()=>'/app/resources/app.asar',getPath:()=>'/tmp',commandLine:{hasSwitch:()=>false,getSwitchValue:()=>'',appendSwitch(){}},isDefaultProtocolClient:()=>true,setAsDefaultProtocolClient(){},on(){},whenReady:()=>new Promise(()=>{})},BrowserWindow:{fromWebContents:()=>null},ipcMain:{on:(ch,fn)=>listeners.set(ch,fn),handle(){}}};
+  let allowTopFrame=true;
+  const patchedMain=patchModule('main',source('main'),selectedAdapter,{healthFile,installationId:'test-install'});
+  const bodyAfterLock=patchedMain.replace('process.exit(0);','');
+  const exports={};
+  const requireFn=name=>name==='electron'?electron:name==='./utils'?{isLocalHubTopFrame:()=>allowTopFrame}:name==='./remote/signInReturn'?{protocolSchemeFor:()=>'antigravity'}:(name.startsWith('./')||name==='electron-log/main')?autoStub():req(name);
+  vm.runInNewContext(bodyAfterLock,{exports,require:requireFn,URL,console,process,setTimeout,clearTimeout,setInterval,clearInterval,__dirname:'/app/dist'});
+  const onReady=listeners.get('ag-zh:ready');assert.ok(onReady);
+  allowTopFrame=false;
+  onReady({sender:{mainFrame},senderFrame:mainFrame},{version:'1.0.0',translated:12});
+  assert.equal(fs.existsSync(healthFile),false);
+  allowTopFrame=true;
+  onReady({sender:{mainFrame},senderFrame:mainFrame},{version:'1.0.0',translated:12});
+  const written=JSON.parse(fs.readFileSync(healthFile,'utf8'));
+  assert.equal(written.translated,12);assert.equal(written.installationId,'test-install');
+ } finally { fs.rmSync(healthFile,{force:true}); }
 });
 
 test('本地主窗口保留启动参数，SSH 会话和背景视图保持隔离', {skip:!original || !selectedAdapter.hubViews}, () => {

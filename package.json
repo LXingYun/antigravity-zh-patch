@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Antigravity App 本机中文补丁：macOS arm64 2.25.0、2.27.0、2.28.0、2.28.1、2.29.0、2.32.1、2.33.0 / Windows x64 2.26.0",
+  "description": "Antigravity App 本机中文补丁：macOS arm64 2.25.0、2.27.0、2.28.0、2.28.1、2.29.0、2.32.1、2.33.0 / Windows x64 2.26.0、2.33.0",
   "engines": {"node": ">=24.15.0 <25"},
   "scripts": {"test": "node --test test/*.test.js", "test:runtime": "node --test test/runtime.test.js", "check": "node src/cli.js check", "status": "node src/cli.js status"},
   "dependencies": {"@electron/asar": "4.3.1", "acorn": "8.19.0", "magic-string": "1.4.3"},

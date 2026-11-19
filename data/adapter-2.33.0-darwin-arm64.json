@@ -27,5 +27,9 @@
     "verifiedAt": "2026-11-20"
   },
   "hubViews": true,
-  "hubWindowArguments": true
+  "hubWindowArguments": true,
+  "expectedChanges": {
+    "menu": 5,
+    "ipcHandlers": 6
+  }
 }

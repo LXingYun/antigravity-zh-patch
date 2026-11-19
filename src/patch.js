@@ -35,6 +35,8 @@ export function patchModule(name, source, adapterOverride=adapter, options={}) {
         replace(n, 'updater_1.updateActions[menuItem.__agZhSourceLabel || menuItem.label]');
       if (n.type === 'BinaryExpression' && raw(n) === 'item.label === submenuLabel')
         replace(n, '(item.__agZhSourceLabel || item.label) === submenuLabel');
+      if (n.type === 'BinaryExpression' && raw(n) === "item.label === 'View'")
+        replace(n, "(item.__agZhSourceLabel || item.label) === 'View'");
       if (n.type === 'CallExpression' && raw(n.callee) === 'electron_1.Menu.setApplicationMenu')
         replace(n, `(require('./ag-zh-native').localizeMenu(menu), ${raw(n)})`);
     }
@@ -64,7 +66,7 @@ export function patchModule(name, source, adapterOverride=adapter, options={}) {
         const spread = n.value.properties.find(p => p.type === 'SpreadElement' &&
           raw(p.argument) === 'additionalArguments.length > 0 ? { additionalArguments } : {}');
         if (!spread) throw Error('主窗口启动参数结构不匹配');
-        replace(spread.argument, `options?.partition || additionalArguments.includes('--agy-backend=ssh')
+        replace(spread.argument, `options?.partition || additionalArguments.includes('--agy-backend=ssh') || !URL.canParse(url)
           ? (${raw(spread.argument)})
           : { additionalArguments: [...additionalArguments, '--ag-zh-origin=' + new URL(url).origin] }`);
         return;
@@ -105,7 +107,7 @@ electron_1.ipcMain.on('ag-zh:ready', (event, state) => {
   } catch { console.warn('[AG-ZH] health acknowledgment unavailable'); }
 });
 `);
-  const expected = {menu:4,updater:4,tray:3,main:6,preload:1,ipcHandlers:(adapter.platform==='win32'||adapter.contextMenu)?5:3};
+  const expected = {menu:4,updater:4,tray:3,main:6,preload:1,ipcHandlers:(adapter.platform==='win32'||adapter.contextMenu)?5:3, ...adapter.expectedChanges};
   if(changes!==expected[name]) throw Error(`${name}: 预期 ${expected[name]} 个修改点，实际 ${changes}`);
   const result=out.toString();parse(result,{ecmaVersion:'latest'});return result;
 }

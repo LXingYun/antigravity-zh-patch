@@ -318,3 +318,148 @@ test('快捷键读屏提示保留组合键，仅在快捷键行内翻译命令',
       ['“打开命令面板”的快捷键：⇧⌘P','移除“打开命令面板”的快捷键 ⇧⌘P','为“Example Command”添加快捷键','Add shortcut for Example Command']);
   } finally { f.close(); }
 });
+
+test('2.33 设置导航与用户同名项目隔离，分支/SSH/下载/转写不误翻',async()=>{
+ const f=await fixture(`<div class="settings-modal-container">
+   <div><h1>Settings</h1></div>
+   <div><button data-testid="settings-nav-item-Customizations"><span>Customizations</span></button>
+   <button data-testid="settings-nav-item-Browser"><span>Browser</span></button>
+   <button data-testid="settings-nav-item-Developer"><span>Developer</span></button>
+   <button data-testid="settings-nav-item-Running"><span>Running</span></button>
+   <button data-testid="settings-nav-item-Provide Feedback"><span>Give Feedback</span></button></div>
+   <div><h2>Projects</h2></div>
+   <div><div><button data-testid="settings-nav-item-General"><span>General</span></button></div>
+   <div><button data-testid="settings-nav-item-Browser"><span>Browser</span></button></div></div>
+ </div>
+ <div data-testid="agent-response"><p>Settings</p></div>
+ <div data-testid="user-message-content"><p>Downloads</p></div>
+ <div data-testid="branch-pill-label">Settings</div>
+ <div data-ssh-host="General"><span>General</span></div>
+ <span data-testid="builtin-browser-download-dir-value">C:\\Users\\Downloads</span>
+ <div data-testid="automation-instructions-markdown"><p>Settings</p></div>
+ <div data-testid="voice-settings-mic"><span>Default</span></div>
+ <div data-testid="bottom-terminal-panel-title">Terminal</div>
+ <div data-testid="webview-download-drawer"><span>Downloads</span><button aria-label="Close downloads"></button><span data-testid="webview-download-filename">Settings.zip</span><div>No recent downloads</div></div>`);
+ try {
+  assert.equal(f.doc.querySelector('[data-testid="settings-nav-item-Customizations"]').textContent,'自定义');
+  assert.equal(f.doc.querySelector('[data-testid="settings-nav-item-Browser"]').textContent,'浏览器');
+  assert.equal(f.doc.querySelector('[data-testid="settings-nav-item-Developer"]').textContent,'开发者');
+  assert.equal(f.doc.querySelector('[data-testid="settings-nav-item-Running"]').textContent,'正在运行');
+  assert.equal(f.doc.querySelector('[data-testid="settings-nav-item-Provide Feedback"]').textContent,'提供反馈');
+  assert.equal(f.doc.querySelector('[data-testid="settings-nav-item-General"]').textContent,'General');
+  assert.equal(f.doc.querySelectorAll('[data-testid="settings-nav-item-Browser"]')[1].textContent,'Browser');
+  assert.equal(f.doc.querySelector('[data-testid="agent-response"]').textContent,'Settings');
+  assert.equal(f.doc.querySelector('[data-testid="user-message-content"]').textContent,'Downloads');
+  assert.equal(f.doc.querySelector('[data-testid="branch-pill-label"]').textContent,'Settings');
+  assert.equal(f.doc.querySelector('[data-ssh-host]').textContent,'General');
+  assert.equal(f.doc.querySelector('[data-testid="builtin-browser-download-dir-value"]').textContent,'C:\\Users\\Downloads');
+  assert.equal(f.doc.querySelector('[data-testid="automation-instructions-markdown"]').textContent,'Settings');
+  assert.equal(f.doc.querySelector('[data-testid="voice-settings-mic"]').textContent,'Default');
+  assert.equal(f.doc.querySelector('[data-testid="bottom-terminal-panel-title"]').textContent,'终端');
+  assert.equal(f.doc.querySelector('[data-testid="webview-download-drawer"] > span').textContent,'下载内容');
+  assert.equal(f.doc.querySelector('[data-testid="webview-download-drawer"] button').getAttribute('aria-label'),'关闭下载列表');
+  assert.equal(f.doc.querySelector('[data-testid="webview-download-filename"]').textContent,'Settings.zip');
+  assert.equal(f.doc.querySelector('[data-testid="webview-download-drawer"] > div').textContent,'暂无最近下载');
+  const slices=f.state.slices;await delay(100);assert.equal(f.state.slices,slices);assert.equal(f.state.errors,0);
+ }finally{f.close();}
+});
+
+test('2.33 首页轮换欢迎语与侧栏分页翻译，保留姓名和会话正文',async()=>{
+ const f=await fixture(`<div data-testid="home-greeting"><h1 class="home-greeting-title">Welcome back, Settings. Where should we pick up?</h1></div>
+ <div data-testid="conversation-list-sidebar"><button class="select-none text-muted-foreground" id="more">See all (8)</button><div data-sidebar-row-id="1"><a>See all (8)</a></div></div>
+ <div data-testid="agent-response"><h1>Welcome back, Settings. Where should we pick up?</h1><button>See all (8)</button></div>`);
+ try {
+  const title=f.doc.querySelector('h1'),more=f.doc.querySelector('#more');
+  assert.equal(title.textContent,'欢迎回来，Settings。想从哪里继续？');
+  assert.equal(more.textContent,'查看全部（8）');
+  for(const [source,translated] of [["Hey New-Project, what should we build today?",'你好，New-Project，今天想做点什么？'],["Good to see you, Memories. What's next?",'很高兴见到你，Memories。接下来想做什么？'],['Hey there, what should we build today?','你好，今天想做点什么？'],['Welcome back. Where should we pick up?','欢迎回来。想从哪里继续？'],["Good to see you. What's next?",'很高兴见到你。接下来想做什么？']]) {
+   title.firstChild.nodeValue=source;await delay(60);assert.equal(title.textContent,translated);
+  }
+  more.firstChild.nodeValue='See less';await delay(60);assert.equal(more.textContent,'收起');
+  assert.equal(f.doc.querySelector('[data-sidebar-row-id] a').textContent,'See all (8)');
+  assert.equal(f.doc.querySelector('[data-testid="agent-response"] h1').textContent,'Welcome back, Settings. Where should we pick up?');
+  assert.equal(f.state.errors,0);
+ }finally{f.close();}
+});
+
+test('2.33 语音占位及选择器翻译，真实音色和麦克风名称不变',async()=>{
+ const f=await fixture(`<div class="settings-modal-container"><h2>Voice mode</h2><p>The voice used in Voice mode. Powered by Gemini Live.</p>
+ <span data-testid="voice-settings-name">Not set</span><div data-testid="voice-settings-mic"><button role="combobox" aria-controls="mic-list" aria-labelledby="voice-microphone-label mic-value"><span id="mic-value">System default</span></button></div>
+ <p>How loud Antigravity's voice is.</p><input type="range" aria-label="Voice volume" value="62"/></div>
+ <div id="mic-list" role="listbox" data-select-popup><div role="option">System default</div><div role="option">System default (2)</div><div role="option">Settings</div><div role="option">Default</div></div>
+ <div data-testid="voice-picker"><h2>Choose Antigravity's Voice</h2><span data-testid="voice-picker-name">Fola</span><div>Clear and friendly</div>
+ <button data-testid="voice-picker-prev" aria-label="Previous voice"></button><button data-testid="voice-picker-next" aria-label="Next voice"></button>
+ <button data-testid="voice-picker-dot-0" aria-label="Fola, voice 1 of 9"></button><button data-testid="voice-picker-use"></button></div>
+ <div data-ag-zh-protect><span data-testid="voice-settings-name">Not set</span><div data-testid="voice-settings-mic">System default</div></div>`);
+ try {
+  assert.equal(f.doc.querySelector('h2').textContent,'语音模式');
+  assert.equal(f.doc.querySelector('[data-testid="voice-settings-name"]').textContent,'未设置');
+  assert.equal(f.doc.querySelector('#mic-value').textContent,'系统默认');
+  assert.deepEqual([...f.doc.querySelectorAll('#mic-list [role="option"]')].map(e=>e.textContent),['系统默认','System default (2)','Settings','Default']);
+  assert.equal(f.doc.querySelector('input').getAttribute('aria-label'),'语音音量');assert.equal(f.doc.querySelector('input').value,'62');
+  assert.equal(f.doc.querySelector('[data-testid="voice-picker"] h2').textContent,'选择 Antigravity 的音色');
+  assert.equal(f.doc.querySelector('[data-testid="voice-picker-name"]').textContent,'Fola');
+  assert.equal(f.doc.querySelector('[data-testid="voice-picker"] > div').textContent,'清晰亲切');
+  assert.equal(f.doc.querySelector('[data-testid="voice-picker-dot-0"]').getAttribute('aria-label'),'Fola，音色 1/9');
+  const use=f.doc.querySelector('[data-testid="voice-picker-use"]');const nodes=['Use ','Fola'].map(s=>f.doc.createTextNode(s));use.append(...nodes);await delay(70);
+  assert.equal(use.textContent,'使用 Fola');assert.equal(use.firstChild,nodes[0]);
+  nodes[1].nodeValue='Arlo';await delay(70);assert.equal(use.textContent,'使用 Arlo');
+  f.doc.querySelector('[data-testid="voice-settings-name"]').firstChild.nodeValue='Fola';f.doc.querySelector('#mic-value').firstChild.nodeValue='Settings';await delay(70);
+  assert.equal(f.doc.querySelector('[data-testid="voice-settings-name"]').textContent,'Fola');assert.equal(f.doc.querySelector('#mic-value').textContent,'Settings');
+  assert.equal(f.doc.querySelector('[data-ag-zh-protect]').textContent,'Not setSystem default');
+  const mic=f.doc.querySelector('[data-testid="voice-settings-mic"] [role="combobox"]');
+  const next=f.doc.createElement('div');next.id='mic-next';next.setAttribute('role','listbox');next.innerHTML='<div role="option" data-value="Settings">Settings</div><div role="option" data-value="System default">System default</div>';
+  f.doc.body.append(next);await delay(70);mic.setAttribute('aria-controls','mic-next');await delay(70);
+  assert.deepEqual([...next.children].map(e=>e.textContent),['Settings','系统默认']);assert.equal(next.firstChild.getAttribute('data-value'),'Settings');
+  assert.equal(f.state.errors,0);const slices=f.state.slices;await delay(70);assert.equal(f.state.slices,slices);
+ }finally{f.close();}
+});
+
+test('2.33 设置说明和音色描述完整命中，音色名硬保护与固定控件互不影响',async()=>{
+ const phrases={
+  'Simplified interface for research, writing, and everyday tasks.':'面向研究、写作和日常任务的简洁界面。',
+  'Full interface for coding, developer tools, and managing agents.':'用于编程、使用开发者工具和管理智能体的完整界面。',
+  'The voice used in Voice mode. Powered by Gemini Live.':'选择语音模式使用的声音，由 Gemini Live 提供。',
+  "How loud Antigravity's voice is.":'调整 Antigravity 的语音音量。',
+  'Confident and clear':'自信清晰','Warm and engaging':'温暖生动','Warm and approachable':'温暖随和',
+  'Deep and velvety':'低沉柔和','Light and precise':'轻快准确',
+  'Open Command Palette':'打开命令面板','Close Tab':'关闭标签页','Reopen Closed Tab':'重新打开已关闭的标签页'
+ };
+ const f=await fixture(`<div class="settings-modal-container">${Object.keys(phrases).map(s=>`<p>${s}</p>`).join('')}</div>
+  <div data-testid="voice-picker"><span data-testid="voice-picker-name">Not set</span><button data-testid="voice-picker-use">Use Unknown</button></div>`);
+ try {
+  assert.deepEqual([...f.doc.querySelectorAll('p')].map(e=>e.textContent),Object.values(phrases));
+  assert.equal(f.doc.querySelector('[data-testid="voice-picker-name"]').textContent,'Not set');
+  assert.equal(f.doc.querySelector('[data-testid="voice-picker-use"]').textContent,'Use Unknown');
+ }finally{f.close();}
+});
+
+test('2.33 固定操作属性与设置补漏，动态分支/设备/快捷键保留原值',async()=>{
+ const f=await fixture(`<button aria-label="Project options"></button><a aria-label="New Conversation in Project"></a>
+ <button data-testid="conversation-archive-button" aria-label="Archive conversation"></button><button data-testid="conversation-pin-button" aria-label="Pin conversation"></button>
+ <button aria-label="More options"></button><button aria-label="More actions"></button><button data-testid="voice-start-button" aria-label="Start Voice mode"></button>
+ <button data-testid="branch-pill-trigger" aria-label="Branch, current: Settings"><span data-testid="branch-pill-label">Settings</span></button>
+ <button data-testid="location-selector-trigger" aria-label="Where the agent runs, current: New Project">New Project</button>
+ <div class="settings-modal-container"><span>Knowledge Work</span><span>Software Engineering</span><span>Controls permissions for remote conversations.</span><span>Font</span><span>Google Sans</span><span>Change…</span><span>Browsing History</span>
+ <input aria-label="Background color picker" value="#ffffff"/><div data-testid="shortcut-row-openConvoPicker"><button aria-label="Shortcut Ctrl+K for Open Conversation Picker"></button><button aria-label="Remove shortcut Ctrl+K for Open Conversation Picker"></button><button aria-label="Add shortcut for Open Conversation Picker"></button></div>
+ <div data-testid="shortcut-row-openFileSearch"><button aria-label="Shortcut Ctrl+P for Open File Search"></button></div>
+ <div data-testid="shortcut-row-openAutomations"><button aria-label="Shortcut Ctrl+U for Automations"></button></div>
+ <div data-testid="shortcut-row-unknown"><button aria-label="Add shortcut for My Settings Command"></button></div></div>
+ <div data-testid="agent-response"><button aria-label="Project options"></button><button data-testid="voice-start-button" aria-label="Start Voice mode"></button></div>`);
+ try {
+  const attr=s=>f.doc.querySelector(s).getAttribute('aria-label');
+  assert.equal(attr('button'),'项目选项');assert.equal(attr('a'),'在项目中新建对话');
+  assert.equal(attr('[data-testid="conversation-archive-button"]'),'归档对话');assert.equal(attr('[data-testid="conversation-pin-button"]'),'置顶对话');
+  assert.equal(attr('[data-testid="voice-start-button"]'),'开始语音模式');
+  assert.equal(attr('[data-testid="branch-pill-trigger"]'),'分支，当前：Settings');assert.equal(f.doc.querySelector('[data-testid="branch-pill-trigger"]').textContent,'Settings');
+  assert.equal(attr('[data-testid="location-selector-trigger"]'),'智能体运行位置，当前：New Project');assert.equal(f.doc.querySelector('[data-testid="location-selector-trigger"]').textContent,'New Project');
+  assert.deepEqual([...f.doc.querySelectorAll('.settings-modal-container > span')].map(e=>e.textContent),['知识工作','软件工程','设置远程对话的权限。','字体','Google Sans','更改…','浏览历史']);
+  assert.equal(attr('input'),'背景颜色选择器');assert.equal(f.doc.querySelector('input').value,'#ffffff');
+  assert.deepEqual([...f.doc.querySelectorAll('[data-testid="shortcut-row-openConvoPicker"] button')].map(e=>e.getAttribute('aria-label')),['“打开对话选择器”的快捷键：Ctrl+K','移除“打开对话选择器”的快捷键 Ctrl+K','为“打开对话选择器”添加快捷键']);
+  assert.equal(attr('[data-testid="shortcut-row-openFileSearch"] button'),'“打开文件搜索”的快捷键：Ctrl+P');
+  assert.equal(attr('[data-testid="shortcut-row-openAutomations"] button'),'“自动化”的快捷键：Ctrl+U');
+  assert.equal(attr('[data-testid="shortcut-row-unknown"] button'),'为“My Settings Command”添加快捷键');
+  assert.equal(attr('[data-testid="agent-response"] button'),'Project options');
+  assert.equal(f.state.errors,0);
+ }finally{f.close();}
+});

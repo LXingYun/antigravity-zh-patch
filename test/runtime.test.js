@@ -9,9 +9,12 @@ async function fixture(html) {
   const dom=new JSDOM(html,{url:origin,pretendToBeVisual:true});
   const state=startTranslator(dom.window,words,origin);
   const deadline = performance.now() + 10_000;
+  let lastSlices = 0;
   do {
     await new Promise(resolve => dom.window.requestAnimationFrame(resolve));
-    if (state.slices > 0 && state.pending === 0) break;
+    // Attribute writes can enqueue one last batch through MutationObserver.
+    if (state.slices > 0 && state.slices === lastSlices && state.pending === 0) break;
+    lastSlices = state.slices;
     if (performance.now() >= deadline) {
       dom.window.close();
       assert.fail('初次翻译扫描未在 10 秒内完成');

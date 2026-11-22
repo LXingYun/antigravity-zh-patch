@@ -150,3 +150,13 @@ Apple Silicon Mac 在全新检出目录安装锁定依赖后运行测试。另�
 - 原版完整备份：`%LOCALAPPDATA%\Antigravity zh-CN\instances\35becd24a8ad2d15cb6d5529\backups\win32-x64-2.34.0-8934adef0622c927\`。
 
 自定义侧栏与插件可见性菜单的隔离有自动测试覆盖；本机当前未展示的新侧栏实验入口、第三方 MCP App 内部页面与未触发的错误状态未做实机验收。
+
+### 主分支合并验证（2026-11-22）
+
+合并后使用同一套 1620 条词库。在 Windows Server 2022 x64 上分别下载三个版本的官方安装器，核验安装器与 ASAR 指纹后执行 `检查兼容性.cmd`。每个版本都完成了应用副本的完整备份、安装、重复安装、中断恢复与还原。[GitHub Actions 测试日志](https://github.com/LXingYun/antigravity-zh-patch/actions/runs/45021803495)
+
+| Windows x64 版本 | 通过 | 按平台或版本跳过 | 失败 |
+| --- | ---: | ---: | ---: |
+| 2.34.0 | 51 | 2 | 0 |
+| 2.33.0 | 51 | 2 | 0 |
+| 2.26.0 | 49 | 4 | 0 |

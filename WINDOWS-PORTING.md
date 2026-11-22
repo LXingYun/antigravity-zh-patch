@@ -1,6 +1,6 @@
 # Windows 适配维护说明
 
-当前适配：Antigravity **App 2.26.0 / 2.33.0 / Windows x64**。macOS 支持版本见主分支说明。使用方法见 [README.md](README.md)，调研依据与初始方案见 [WINDOWS-ADAPTATION-PLAN.md](WINDOWS-ADAPTATION-PLAN.md)。
+当前适配：Antigravity **App 2.26.0 / 2.33.0 / 2.34.0 / Windows x64**。macOS 支持版本见主分支说明。使用方法见 [README.md](README.md)，调研依据与初始方案见 [WINDOWS-ADAPTATION-PLAN.md](WINDOWS-ADAPTATION-PLAN.md)。
 
 ## 平台边界
 
@@ -16,7 +16,7 @@
 | `src/transaction.js` | 资源替换日志与恢复；Windows 保留原资源权限 |
 | `scripts/windows.cmd`、根目录中文 `.cmd` | 中文入口、Node/依赖检查，不更改执行策略 |
 
-Windows 官方安装包本身 Google LLC 签名有效，安装后的主程序和语言服务原厂未签名。适配文件包含官方 URL、安装包指纹、分发文件 SHA-256（2.26.0 为 425 个文件，2.33.0 为 454 个文件）和可选卸载器指纹，不包含原厂二进制。所有哈希均由核验过的官方包提取，不能用未知本地文件直接更新基线。
+Windows 官方安装包本身 Google LLC 签名有效，安装后的主程序和语言服务原厂未签名。适配文件包含官方 URL、安装包指纹、分发文件 SHA-256（2.26.0 为 425 个文件，2.33.0 / 2.34.0 均为 454 个文件）和可选卸载器指纹，不包含原厂二进制。所有哈希均由核验过的官方包提取，不能用未知本地文件直接更新基线。
 
 ## 本地验证
 
@@ -28,7 +28,7 @@ npm test
 node src/cli.js check
 ```
 
-`npm test` 在临时副本运行安装与还原，不写正在使用的 Antigravity。原始资源发现顺序为环境变量 `AG_ZH_ORIGINAL_ASAR`、本地 `work/official-2.33/app/resources/app.asar` / `work/official/app/resources/app.asar`、默认原版安装；Mac 另支持原来的原版备份位置。显式提供的资源必须匹配适配指纹。
+`npm test` 在临时副本运行安装与还原，不写正在使用的 Antigravity。原始资源发现顺序为环境变量 `AG_ZH_ORIGINAL_ASAR`、本地 `work/official-2.34/app/resources/app.asar` / `work/official-2.33/app/resources/app.asar` / `work/official/app/resources/app.asar`、默认原版安装；Mac 另支持原来的原版备份位置。显式提供的资源必须匹配适配指纹。
 
 覆盖范围包括：翻译区域与用户内容隔离、原生命令 ID/回调/快捷键、WSL 发行版名保护、ASAR 未修改文件、未知版本、Windows 长路径/中文/空格/引号、DACL/属性、真实文件锁、只读目标、junction 拒绝、非法事务路径、重复安装、完整恢复、中断恢复与升级冲突。另一平台特有检查会明确跳过；Windows 测试通过不能替代新一轮 Mac 实机验收。
 

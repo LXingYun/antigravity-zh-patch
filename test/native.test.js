@@ -27,6 +27,9 @@ test('WSL 用户命名与原生右键菜单未知标签保持原样，固定命�
  assert.equal(native.translateContextItem({id:'open-in-builtin-browser',label:'Open in Built-in Browser'}),'在内置浏览器中打开');
  assert.equal(native.translateContextItem({id:'group-1',label:'Settings'}),'Settings');
  assert.equal(native.translateContextItem({id:'pin',label:'My Project'}),'My Project');
+ assert.equal(native.translateContextItem({id:'move-down',label:'Move Down'}),'下移');
+ assert.equal(native.translateContextItem({id:'reply-agent-message',label:'Reply'}),'回复');
+ assert.equal(native.translateContextItem({id:'move-up',label:'Settings'}),'Settings');
 });
 
 test('真实原生右键菜单构建保留命令 ID、回调与快捷键',{skip:!original||!(selectedAdapter.platform==='win32'||selectedAdapter.contextMenu)},()=>{
@@ -168,7 +171,7 @@ test('本地主窗口保留启动参数，SSH 会话和背景视图保持隔离'
     {builtInBrowser:false, additionalArguments:['--agy-backend=ssh']},
     {builtInBrowser:false, partition:'persist:example'}
   );
-  if (selectedAdapter.version === '2.33.0') scenarios.push({builtInBrowser:true,threeLayer:true,additionalArguments:['--example-local']});
+  if (source('utils').includes('WCV_THREE_LAYER_STACK_ARG')) scenarios.push({builtInBrowser:true,threeLayer:true,additionalArguments:['--example-local']});
   for (const {threeLayer, ...options} of scenarios) {
     const useViews = options.builtInBrowser;
     const captured = [];

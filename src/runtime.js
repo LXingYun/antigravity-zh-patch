@@ -49,6 +49,7 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     '[data-testid="custom-view-pane-title"]', '[data-testid="plugin-view-title-bar-title"]', '[data-testid="mobile-plugin-view-title"]',
     '[data-testid="voice-picker-name"]',
     '[data-testid="lsp-symbol-hover-card"]', '[data-testid="lsp-reference-item"]', '[data-testid="csv-file-viewer"]',
+    '[data-testid="plugins-visibility-option"]', '[data-testid="plugins-nav-show-item"]', '[data-testid="plugin-sidebar-drag-overlay"]',
     '[data-ag-zh-protect]'
   ].join(',');
   const uiIds = [
@@ -83,7 +84,7 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     'sidecar-detail-run-now', 'project-selector-create-project-trigger', 'ssh-machine-switcher-this-computer',
     'voice-delete-recordings-modal', 'voice-picker', 'voice-end-button',
     'voice-call-end', 'home-greeting', 'external-link-confirm-modal',
-    'plugin-source-caution-modal'
+    'plugin-source-caution-modal', 'model-selector-effort-header', 'customize-sidebar-modal'
   ];
   const attributes = ['title', 'aria-label', 'placeholder', 'data-placeholder'];
   const state = { version: '1.0.0', translated: 0, slices: 0, pending: 0, errors: 0, stop };
@@ -211,7 +212,8 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     'Rename This Conversation','Move to New Group','Remove from Group','Open Trajectory Debug View','Copy Conversation ID',
     'Copy Trajectory ID','Download Diagnostics','Toggle Between Light/Dark Themes','Connect to SSH Host…','Stop SSH Server…',
     'Switch to This Computer','Previous Side Panel Tab','Next Side Panel Tab','Collapse All Folders','Expand All Folders',
-    'Select All','Cancel Generation','Submit Prompt (Alternate to Enter)']);
+    'Select All','Cancel Generation','Submit Prompt (Alternate to Enter)',
+    ...Array.from({length:9},(_,i)=>`Select Sidebar Item ${i+1}`)]);
   const chromeAttributes = new Set(['Display Options','More Actions','Go Back','Go Forward',
     'Toggle Sidebar','Toggle sidebar','Toggle Sidebar, conversations need attention',
     'Search Conversations','Typeahead menu','Sidebar','Notifications','Copy path','Copy Path',
@@ -226,7 +228,8 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     'New Conversation in Workspace','Archive conversation','Pin conversation','Unpin conversation','More options','More actions',
     'Start Voice mode','End Voice mode','Start Live Chat','End Live chat','Previous voice','Next voice','Voice volume',
     'Background color picker','Foreground color picker','Accent color picker',
-    'Sort and filter conversations', 'Previous card', 'Next card', 'Announcements and tips', 'Record voice memo', 'Stop recording', 'Hidden hosts', 'Choose icon and color', 'Voice speed']);
+    'Sort and filter conversations', 'Previous card', 'Next card', 'Announcements and tips', 'Record voice memo', 'Stop recording', 'Hidden hosts', 'Choose icon and color', 'Voice speed',
+    'Customize Sidebar','Filter and Sort','Plugins Options','Show or Hide Plugins','Filter plugins','Clear category','Pinned Actions']);
   const historyText = new Set(['This page is going away soon','Search conversations with',
     'in the top left.','View archived in the sidebar','menu)']);
   const emptyConversations = new Set(['No conversations yet','No conversations found',
@@ -251,6 +254,7 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     if ((key === 'Installed separately' && el.matches('[data-testid="bundle-installed-separately"]')) ||
         (key === 'No longer available' && el.matches('[data-testid="bundle-unavailable-note"]'))) return true;
     if (isSidebarPagination(el) && (/^See all \(\d+\)$/.test(key) || key === 'See less')) return true;
+    if (['Pinned','Pinned Conversations'].includes(key) && el.closest('[data-testid="pinned-section-header"]')) return true;
     // The original validates voice names, and suffixes duplicate microphone labels.
     // These two exact placeholders cannot be actual voice/device display names.
     if (key === 'Not set' && el.matches('[data-testid="voice-settings-name"]')) return true;
@@ -280,6 +284,16 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     if (!['aria-label','title','placeholder'].includes(attr)) return source;
     const id = el.getAttribute('data-testid');
     if (attr === 'aria-label') {
+      if (id === 'customize-group-by' || id === 'customize-idle-limit') {
+        const group = id === 'customize-group-by';
+        const label = group ? 'Group By' : 'Idle Conversations';
+        const options = group ? ['Project','Workspace','Repo','Environment','Status','None'] : ['Show 5','Show 10','Show All'];
+        if (source.startsWith(label + ': ')) {
+          const option = source.slice(label.length + 2);
+          return dictionary[label] + '：' + (options.includes(option) ? dictionary[option] : option);
+        }
+      }
+      if (source === 'Permission approval scope' && el.getAttribute('role') === 'radiogroup') return dictionary[source];
       if (id === 'branch-pill-trigger' && source.startsWith('Branch, current: ')) return '分支，当前：' + source.slice(17);
       if (id?.startsWith('voice-picker-dot-') && el.closest('[data-testid="voice-picker"]')) {
         const voice=source.match(/^(.+), voice (\d+) of (\d+)$/);
@@ -322,7 +336,7 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
       }
     }
     if (chromeAttributes.has(source) ||
-        (el.matches('input,textarea') && (['customizations-search','new-sidecar-name','new-sidecar-prompt','fastpick-input','branch-search','file-tree-filter-input',
+        (el.matches('input,textarea') && (['inline-permission-deny-note','customizations-search','new-sidecar-name','new-sidecar-prompt','fastpick-input','branch-search','file-tree-filter-input',
            'project-selector-this-machine-search','project-selector-cloud-search','project-selector-ssh-host-search',
            'ssh-connect-host-input','coordinator-name-input','coordinator-goal-input','coordinator-settings-name'].includes(id) || el.closest('[data-testid="sidecars-view"],[data-testid="new-sidecar-modal"],[data-testid="add-mcp-screen"],[data-testid="browser-site-data-dialog"]'))) ||
         (el.matches('span[aria-label].rounded-full.font-normal') && ['Built In','Global','Workspace'].includes(source))) return translate(source,el);

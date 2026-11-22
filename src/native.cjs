@@ -19,7 +19,7 @@ function localizeMenu(menu) {
   }
   return menu;
 }
-// Fixed id/label pairs observed in the 2.26.0 and 2.33.0 frontends. Positional IDs and
+// Fixed id/label pairs observed in the supported frontends. Positional IDs and
 // dynamic project/group/distribution names deliberately stay untouched.
 const copyMenuLabels = ['Conversation Name', 'Conversation ID', 'Workspace Name', 'Worktree Name', 'Project Name'];
 const splitMenuLabels = ['Split Right', 'Split Down', 'Replace with New', 'Remove from Split'];
@@ -27,6 +27,7 @@ const contextLabels = {
   copy: 'Copy', cut: 'Cut', paste: 'Paste', 'select-all': 'Select All',
   'copy-selection': 'Copy', 'copy-link': 'Copy Link', 'add-folder': 'Open Folder',
   'group-new': 'New Group', 'group-remove': 'Remove from Group', 'move-to-group': 'Move to Group',
+  hide: 'Hide', 'move-up': 'Move Up', 'move-down': 'Move Down', 'reply-agent-message': 'Reply',
   rename: 'Rename', split: 'Split', share: 'Share', stop: 'Stop', archive: 'Archive',
   delete: ['Delete', 'Delete Permanently'],
   pin: ['Pin', 'Unpin'],

@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-const names=['adapter-2.25.0.json','adapter-2.26.0-win32-x64.json','adapter-2.27.0-darwin-arm64.json','adapter-2.28.0-darwin-arm64.json','adapter-2.28.1-darwin-arm64.json','adapter-2.29.0-darwin-arm64.json','adapter-2.32.1-darwin-arm64.json','adapter-2.33.0-darwin-arm64.json','adapter-2.33.0-win32-x64.json'];
+const names=['adapter-2.25.0.json','adapter-2.26.0-win32-x64.json','adapter-2.27.0-darwin-arm64.json','adapter-2.28.0-darwin-arm64.json','adapter-2.28.1-darwin-arm64.json','adapter-2.29.0-darwin-arm64.json','adapter-2.32.1-darwin-arm64.json','adapter-2.33.0-darwin-arm64.json','adapter-2.33.0-win32-x64.json','adapter-2.34.0-darwin-arm64.json','adapter-2.34.0-win32-x64.json'];
 const adapterFiles=new WeakMap();
 const adapters=names.map(name=>{
   const adapter=JSON.parse(fs.readFileSync(new URL('../data/'+name,import.meta.url),'utf8'));

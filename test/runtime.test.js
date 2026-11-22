@@ -474,3 +474,63 @@ test('2.33 固定操作属性与设置补漏，动态分支/设备/快捷键保�
   assert.equal(f.state.errors,0);
  }finally{f.close();}
 });
+
+test('2.34 输入框、编排器与思考强度翻译，快捷键值和模型名称不变',async()=>{
+ const description='Controls how much time and quota the model spends reasoning before responding. Higher effort improves accuracy on hard problems, at the cost of slower responses and higher quota use.';
+ const f=await fixture(`<div class="settings-modal-container"><h2>Input Box</h2><p>Choose which key sends a message in the chat composer.</p><span id="queued">Queued messages</span><p id="mac-send">Press Cmd+Enter to send, Enter for a new line.</p>
+ <button data-value="enter">Enter</button><button data-value="modEnter" title="Press Ctrl+Enter to send, Enter for a new line.">Ctrl+Enter</button>
+ <h2>Orchestrator Settings</h2><label>Orchestrator Model</label><label>Executor Model</label>
+ <span data-model-base="Settings">Settings</span><input value="Thinking effort"/></div>
+ <div data-testid="model-selector-effort-header"><span>Thinking effort</span><span role="img" aria-label="${description}"></span></div>
+ <div data-testid="agent-response"><h2>Input Box</h2><p>Thinking effort</p></div>`);
+ try {
+  assert.equal(f.doc.querySelector('h2').textContent,'输入框');
+  assert.equal(f.doc.querySelector('p').textContent,'选择在输入框中发送消息的快捷键。');
+  assert.equal(f.doc.querySelector('#queued').textContent,'排队消息');
+  assert.equal(f.doc.querySelector('#mac-send').textContent,'按 Cmd+Enter 发送，按 Enter 换行。');
+  const buttons=[...f.doc.querySelectorAll('button')];
+  assert.deepEqual(buttons.map(e=>[e.textContent,e.dataset.value]),[['Enter','enter'],['Ctrl+Enter','modEnter']]);
+  assert.equal(buttons[1].title,'按 Ctrl+Enter 发送，按 Enter 换行。');
+  assert.deepEqual([...f.doc.querySelectorAll('label')].map(e=>e.textContent),['编排模型','执行模型']);
+  assert.equal(f.doc.querySelector('[data-model-base]').textContent,'Settings');
+  assert.equal(f.doc.querySelector('input').value,'Thinking effort');
+  assert.equal(f.doc.querySelector('[data-testid="model-selector-effort-header"] > span').textContent,'思考强度');
+  assert.equal(f.doc.querySelector('[role="img"]').getAttribute('aria-label'),words[description]);
+  assert.equal(f.doc.querySelector('[data-testid="agent-response"]').textContent,'Input BoxThinking effort');
+  assert.equal(f.state.errors,0);
+ }finally{f.close();}
+});
+
+test('2.34 侧栏定制、筛选和序号快捷键翻译，插件名称与配置值受保护',async()=>{
+ const f=await fixture(`<button aria-label="Customize Sidebar"></button><button aria-label="Filter and Sort"></button><button aria-label="Plugins Options"></button>
+ <div data-testid="pinned-section-header"><span>Pinned Conversations</span><button aria-label="Pinned Actions"></button></div>
+ <div data-sidebar-row-id="user-pinned">Pinned Conversations</div>
+ <div data-testid="customize-sidebar-modal"><span>Filters</span><span>Idle Conversations</span><span>Show Automation Conversations</span><span>Show Plugin Conversations</span>
+ <button data-testid="customize-group-by" aria-label="Group By: Project" data-value="project">Project</button>
+ <button data-testid="customize-idle-limit" aria-label="Idle Conversations: Show 5" data-value="5">Show 5</button></div>
+ <div role="menu"><div data-testid="plugins-nav-show-item">Input Box</div><span data-testid="plugins-visibility-option">Settings</span><span>Manual Order</span></div>
+ <div data-testid="plugin-sidebar-drag-overlay"><h2>Thinking effort</h2></div>
+ <div class="settings-modal-container"><div data-testid="shortcut-row-sidebar.selectItem1"><span>Select Sidebar Item 1</span><button aria-label="Shortcut Ctrl+1 for Select Sidebar Item 1"></button></div></div>
+ <div data-testid="agent-response"><button aria-label="Customize Sidebar"></button><span>Idle Conversations</span></div>`);
+ try {
+  assert.deepEqual([...f.doc.querySelectorAll('body > button')].map(e=>e.getAttribute('aria-label')),['自定义侧栏','筛选和排序','插件选项']);
+  assert.equal(f.doc.querySelector('[data-testid="pinned-section-header"] span').textContent,'置顶对话');
+  assert.equal(f.doc.querySelector('[data-testid="pinned-section-header"] button').getAttribute('aria-label'),'置顶操作');
+  assert.equal(f.doc.querySelector('[data-sidebar-row-id="user-pinned"]').textContent,'Pinned Conversations');
+  assert.deepEqual([...f.doc.querySelectorAll('[data-testid="customize-sidebar-modal"] > span')].map(e=>e.textContent),['筛选条件','空闲对话','显示自动化对话','显示插件对话']);
+  const group=f.doc.querySelector('[data-testid="customize-group-by"]'),limit=f.doc.querySelector('[data-testid="customize-idle-limit"]');
+  assert.equal(group.getAttribute('aria-label'),`${words['Group By']}：${words.Project}`);assert.equal(group.dataset.value,'project');
+  group.setAttribute('aria-label','Group By: Settings');
+  await delay(100);
+  assert.equal(group.getAttribute('aria-label'),'分组方式：Settings');
+  assert.equal(limit.textContent,'显示 5 条');assert.equal(limit.getAttribute('aria-label'),'空闲对话：显示 5 条');assert.equal(limit.dataset.value,'5');
+  for(const [id,text] of [['plugins-nav-show-item','Input Box'],['plugins-visibility-option','Settings'],['plugin-sidebar-drag-overlay','Thinking effort']])
+   assert.equal(f.doc.querySelector(`[data-testid="${id}"]`).textContent,text);
+  assert.equal(f.doc.querySelector('[role="menu"] > span:last-child').textContent,'手动排序');
+  assert.equal(f.doc.querySelector('[data-testid^="shortcut-row-"] > span').textContent,'选择侧栏第 1 项');
+  assert.equal(f.doc.querySelector('[data-testid^="shortcut-row-"] > button').getAttribute('aria-label'),'“选择侧栏第 1 项”的快捷键：Ctrl+1');
+  assert.equal(f.doc.querySelector('[data-testid="agent-response"] button').getAttribute('aria-label'),'Customize Sidebar');
+  assert.equal(f.doc.querySelector('[data-testid="agent-response"] span').textContent,'Idle Conversations');
+  assert.equal(f.state.errors,0);
+ }finally{f.close();}
+});

@@ -1,0 +1,35 @@
+{
+  "version": "2.34.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "bundleId": "com.google.antigravity",
+  "teamId": "EQHXZ8M8AV",
+  "asarSha256": "8934adef0622c9271c92eea950a71848764a66f7b10023ccbd82e54b959adb0e",
+  "serverSha256": "bf66ad9f32ea50cf47686b3a4265cdd596d7c91a34de362f82264a4f52be4a87",
+  "modules": {
+    "dist/preload.js": "d9641f990029ef095b6e93e76579b59de67c1ba56ba4ce84cb0429ecc9b6556a",
+    "dist/menu.js": "a6cde959efd16f0c99bdcb66d2228445bb7b2f00d0cb5a51aa1df6a8d933db13",
+    "dist/tray.js": "6c6b0968b45a1c7088e459657d57a9efd72d3733614349095f17b6ee94b47135",
+    "dist/updater.js": "6f8dbba51f45894e06903f9a030ff6c292df6563573750fc1f777bed4238a429",
+    "dist/utils.js": "b1a56e70e747389ee1143faba202ec4302fe6855cb77bc97d2c3a7fbbf372d1c",
+    "dist/main.js": "383fcb66595c57b4d9efacdc7b11e3a2a334cb825b254d922cd4fe40455831bd",
+    "dist/ipcHandlers.js": "a87ac1cd19ab946ccac8ed4c885db1057e897cc45fe4be97600912a89ea59a2e"
+  },
+  "contextMenu": true,
+  "fuses": {
+    "version": 1,
+    "count": 9,
+    "values": "101100011"
+  },
+  "source": {
+    "kind": "locally-installed-official-app",
+    "signature": "Developer ID Application: Google LLC (EQHXZ8M8AV)",
+    "verifiedAt": "2026-11-22"
+  },
+  "hubViews": true,
+  "hubWindowArguments": true,
+  "expectedChanges": {
+    "menu": 5,
+    "ipcHandlers": 6
+  }
+}

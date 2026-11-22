@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-const names=['adapter-2.25.0.json','adapter-2.26.0-win32-x64.json','adapter-2.33.0-win32-x64.json'];
+const names=['adapter-2.25.0.json','adapter-2.26.0-win32-x64.json','adapter-2.33.0-win32-x64.json','adapter-2.34.0-win32-x64.json'];
 const adapterFiles=new WeakMap();
 const adapters=names.map(name=>{
   const adapter=JSON.parse(fs.readFileSync(new URL('../data/'+name,import.meta.url),'utf8'));

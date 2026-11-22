@@ -39,6 +39,7 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     '[data-testid="custom-view-pane-title"]', '[data-testid="plugin-view-title-bar-title"]', '[data-testid="mobile-plugin-view-title"]',
     '[data-testid="voice-settings-name"]', '[data-testid="voice-picker-name"]', '[data-testid="voice-settings-mic"]',
     '[data-testid="lsp-symbol-hover-card"]', '[data-testid="lsp-reference-item"]', '[data-testid="csv-file-viewer"]',
+    '[data-testid="plugins-visibility-option"]', '[data-testid="plugins-nav-show-item"]', '[data-testid="plugin-sidebar-drag-overlay"]',
     '[data-ag-zh-protect]'
   ].join(',');
   const uiIds = [
@@ -68,7 +69,8 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     'schedule-editor-save', 'schedule-editor-reset', 'sidecar-detail-run-now',
     'project-selector-connect-ssh-host', 'project-selector-create-project-trigger', 'ssh-machine-switcher-this-computer',
     'voice-delete-recordings-modal', 'voice-picker', 'voice-end-button', 'voice-call-end',
-    'home-greeting', 'external-link-confirm-modal', 'plugin-source-caution-modal'
+    'home-greeting', 'external-link-confirm-modal', 'plugin-source-caution-modal',
+    'model-selector-effort-header', 'customize-sidebar-modal'
   ];
   const attributes = ['title', 'aria-label', 'placeholder', 'data-placeholder'];
   const state = { version: '1.0.0', translated: 0, slices: 0, pending: 0, errors: 0, stop };
@@ -158,7 +160,8 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     'Rename This Conversation','Move to New Group','Remove from Group','Open Trajectory Debug View','Copy Conversation ID',
     'Copy Trajectory ID','Download Diagnostics','Toggle Between Light/Dark Themes','Connect to SSH Host…','Stop SSH Server…',
     'Switch to This Computer','Previous Side Panel Tab','Next Side Panel Tab','Collapse All Folders','Expand All Folders',
-    'Select All','Cancel Generation','Submit Prompt (Alternate to Enter)']);
+    'Select All','Cancel Generation','Submit Prompt (Alternate to Enter)',
+    ...Array.from({length:9},(_,i)=>`Select Sidebar Item ${i+1}`)]);
   const chromeAttributes = new Set(['Display Options','More Actions','Go Back','Go Forward',
     'Toggle Sidebar','Toggle sidebar','Toggle Sidebar, conversations need attention',
     'Search Conversations','Typeahead menu','Sidebar','Notifications','Copy path','Copy Path',
@@ -172,7 +175,8 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     'Forward','Show in folder','Cancel download','Remove from list','Project options','New Conversation in Project',
     'New Conversation in Workspace','Archive conversation','Pin conversation','Unpin conversation','More options','More actions',
     'Start Voice mode','End Voice mode','Start Live Chat','End Live chat','Previous voice','Next voice','Voice volume',
-    'Background color picker','Foreground color picker','Accent color picker']);
+    'Background color picker','Foreground color picker','Accent color picker',
+    'Customize Sidebar','Filter and Sort','Plugins Options','Show or Hide Plugins','Filter plugins','Clear category','Pinned Actions']);
   const historyText = new Set(['This page is going away soon','Search conversations with',
     'in the top left.','View archived in the sidebar','menu)']);
   const emptyConversations = new Set(['No conversations yet','No conversations found',
@@ -194,6 +198,7 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     const old = originals.get(node);
     const key = (old && node.nodeValue === old.translated ? old.source : node.nodeValue).trim();
     if (isSidebarPagination(el) && (/^See all \(\d+\)$/.test(key) || key === 'See less')) return true;
+    if (key === 'Pinned Conversations' && el.closest('[data-testid="pinned-section-header"]')) return true;
     // The original validates voice names, and suffixes duplicate microphone labels.
     // These two exact placeholders cannot be actual voice/device display names.
     if (key === 'Not set' && el.matches('[data-testid="voice-settings-name"]')) return true;
@@ -218,6 +223,11 @@ export function startTranslator(win, dictionary, expectedOrigin, onReady = () =>
     if (!['aria-label','title','placeholder'].includes(attr)) return source;
     const id = el.getAttribute('data-testid');
     if (attr === 'aria-label') {
+      if (['customize-group-by','customize-idle-limit'].includes(id)) {
+        const parts=source.split(': ');
+        if (parts.length === 2 && ['Group By','Idle Conversations'].includes(parts[0]) && Object.hasOwn(dictionary,parts[1]))
+          return `${dictionary[parts[0]]}: ${dictionary[parts[1]]}`;
+      }
       if (id === 'branch-pill-trigger' && source.startsWith('Branch, current: ')) return '分支，当前：' + source.slice(17);
       if (id === 'location-selector-trigger' && source.startsWith('Where the agent runs, current: ')) return '智能体运行位置，当前：' + source.slice(31);
       if (id?.startsWith('voice-picker-dot-') && el.closest('[data-testid="voice-picker"]')) {

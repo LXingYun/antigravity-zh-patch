@@ -3,12 +3,13 @@ import path from 'node:path';
 import os from 'node:os';
 import {createHash} from 'node:crypto';
 const root=path.resolve(import.meta.dirname,'../..');
-const winAdapters=['adapter-2.33.0-win32-x64.json','adapter-2.26.0-win32-x64.json']
+const winAdapters=['adapter-2.34.0-win32-x64.json','adapter-2.33.0-win32-x64.json','adapter-2.26.0-win32-x64.json']
   .map(name=>JSON.parse(fs.readFileSync(path.join(root,'data',name),'utf8')));
 const macAdapter=JSON.parse(fs.readFileSync(path.join(root,'data/adapter-2.25.0.json'),'utf8'));
 const candidates=[];
 if(process.env.AG_ZH_ORIGINAL_ASAR)candidates.push(process.env.AG_ZH_ORIGINAL_ASAR);
 if(process.platform==='win32') {
+  candidates.push(path.join(root,'work/official-2.34/app/resources/app.asar'));
   candidates.push(path.join(root,'work/official-2.33/app/resources/app.asar'));
   candidates.push(path.join(root,'work/official/app/resources/app.asar'));
   candidates.push(path.join(process.env.LOCALAPPDATA||'','Programs/antigravity/resources/app.asar'));

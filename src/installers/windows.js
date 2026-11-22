@@ -8,7 +8,7 @@ import * as win from '../platform/windows.js';
 import { exchangeResources, commit, rollbackResources, pendingTransactions } from '../transaction.js';
 import { adapterFile, selectAdapter } from '../adapters.js';
 
-export const adapter=await readJSON(path.join(root,'data/adapter-2.33.0-win32-x64.json'));
+export const adapter=await readJSON(path.join(root,'data/adapter-2.34.0-win32-x64.json'));
 export const stateDir=win.stateRoot;
 // Deferred discovery lets --app work even when multiple installations exist.
 export const defaultApp=undefined;

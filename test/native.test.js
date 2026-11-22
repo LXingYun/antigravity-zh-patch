@@ -108,12 +108,12 @@ test('原生文件夹选择框标题汉化，保留路径、选项和取消行�
  }
 });
 
-test('2.33 utils 保留已有启动参数并注入 origin，main 支持 BaseWindow 顶帧就绪确认',requiresOriginal,()=>{
+test('多版本 utils 保留已有启动参数并注入 origin，main 支持 BaseWindow 顶帧就绪确认',requiresOriginal,()=>{
  const utilsCode=patchModule('utils',source('utils'),selectedAdapter);
  if(utilsCode.includes('options?.additionalArguments ?? []')) {
   assert.ok(utilsCode.includes('--ag-zh-origin='));
   let capturedOpts=[];
-  class BaseWin{constructor(o){capturedOpts.push(o);this.contentView={children:[],addChildView(){},removeChildView(){}};}on(){}setTitle(){}isDestroyed(){return false;}getContentSize(){return [800,600];}}
+  class BaseWin{constructor(o){capturedOpts.push(o);this.contentView={children:[],addChildView(){},removeChildView(){},on(){}};}on(){}setTitle(){}isDestroyed(){return false;}getContentSize(){return [800,600];}}
   class Wcv{constructor(o){capturedOpts.push(o);this.webContents={on(){},once(){},off(){},loadURL:async()=>{},setWindowOpenHandler(){},setIgnoreMenuShortcuts(){},setZoomMode(){},setZoomFactor(){},setVisualZoomLevelLimits:async()=>{},isDestroyed:()=>false};}setBackgroundColor(){}setBounds(){}setVisible(){}}
   const electron={app:{getName:()=>'Antigravity',isPackaged:true,getPath:()=>'/tmp'},nativeTheme:{shouldUseDarkColors:true},BaseWindow:BaseWin,View:class{setBounds(){}setVisible(){}},WebContentsView:Wcv,BrowserWindow:class{constructor(o){capturedOpts.push(o);}on(){}}};
   const m=load('utils',{electron,'./paths':{getSettingsPbPath:()=>'/nonexistent',getAppStoragePath:()=>'/nonexistent'},'./windowState':{resolveInitialWindowState:()=>({width:800,height:600}),trackWindowState(){},MIN_WINDOW_WIDTH:400,MIN_WINDOW_HEIGHT:300},'./wsl':{getActiveWslDistro:()=>null},'./debugConsole':{isDebugConsoleEnabled:()=>false},'./hubWindows':{isAuxWindow:()=>false},'./remote/windowBackends':{isLocalAppWindow:()=>true}});
